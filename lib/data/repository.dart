@@ -246,6 +246,11 @@ class Repository extends ChangeNotifier {
 
   List<Conversation> listConversations() => List.unmodifiable(_conversations);
 
+  List<Stream<Object?>> conversationChanges(String id) => [
+    _db.from('messages').stream(primaryKey: ['id']).eq('conversation_id', id),
+    _db.from('offers').stream(primaryKey: ['id']).eq('conversation_id', id),
+  ];
+
   Conversation? getConversation(String id) {
     for (final c in _conversations) {
       if (c.id == id) return c;

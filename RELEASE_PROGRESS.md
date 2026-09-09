@@ -109,3 +109,9 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Run 34326740947: iOS succeeded, Android failed AAR metadata validation because flutter_secure_storage 11 requires compile SDK 37.
 - Updated compile SDK to 37, AGP to 9.1.1 and Gradle to 9.3.1 with the official distribution checksum. This matches https://developer.android.com/build/releases/agp-9-1-0-release-notes .
 - Rebuild is required to prove this compatibility fix; do not use the earlier green Android result as evidence for the secure-storage dependency.
+
+## Live chat refresh reliability
+- Moved chat subscriptions to the injected repository client and added a coordinator that coalesces realtime events and prevents overlapping event-driven reads.
+- Read/stream failures display a retry banner; initial loading no longer renders a blank screen. Disposal stops queued reloads and avoids notifications after leaving the screen.
+- All 49 tests pass and analyzer is clean, including controller concurrency/error/disposal checks and a widget test that retries a failed chat load.
+- Full hosted two-device messaging, reconnect and moderation/access-policy testing remain required. Native run 34327269153 covers the earlier secure-storage/build-tool changes, not this unpushed chat change.
