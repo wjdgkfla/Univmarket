@@ -11,7 +11,7 @@ import 'screens/saved_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/sell_screen.dart';
 import 'theme/tokens.dart';
-import 'widgets/ambient_glow.dart';
+
 import 'widgets/pill_nav.dart';
 
 /// Built fresh per [UnivMarketApp] instance rather than as a bare top-level
@@ -22,6 +22,11 @@ import 'widgets/pill_nav.dart';
 GoRouter buildRouter() => GoRouter(
   initialLocation: '/',
   routes: [
+    GoRoute(
+      path: '/edit/:id',
+      builder: (context, state) =>
+          SellScreen(editingId: state.pathParameters['id']!),
+    ),
     ShellRoute(
       builder: (context, state, child) => Stack(
         children: [
@@ -78,6 +83,7 @@ class UnivMarketApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.light,
+          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFBD431D)),
           scaffoldBackgroundColor: AppColors.light.bg,
           useMaterial3: true,
         ),
@@ -86,18 +92,29 @@ class UnivMarketApp extends StatelessWidget {
           scaffoldBackgroundColor: AppColors.dark.bg,
           useMaterial3: true,
         ),
+        themeMode: ThemeMode.light,
         routerConfig: _router,
         builder: (context, child) {
           final bg = Theme.of(context).brightness == Brightness.dark
               ? AppColors.dark.bg
               : AppColors.light.bg;
-          return DecoratedBox(
-            decoration: BoxDecoration(color: bg),
-            child: Stack(
-              children: [
-                const Positioned.fill(child: AmbientGlow()),
-                ?child,
-              ],
+          return ColoredBox(
+            color: const Color(0xFFE8EAE8),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => MediaQuery(
+                    data: MediaQuery.of(context).copyWith(
+                      size: Size(constraints.maxWidth, constraints.maxHeight),
+                    ),
+                    child: ColoredBox(
+                      color: bg,
+                      child: child ?? const SizedBox(),
+                    ),
+                  ),
+                ),
+              ),
             ),
           );
         },

@@ -1,293 +1,281 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
-import '../theme/tokens.dart';
-import '../widgets/gradient_button.dart';
 import '../widgets/screen_scaffold.dart';
 
-const _segments = ['Cash only', 'Trade only', 'Cash + trade'];
-
 class SellScreen extends StatefulWidget {
-  const SellScreen({super.key});
-
+  const SellScreen({super.key, this.editingId});
+  final String? editingId;
   @override
   State<SellScreen> createState() => _SellScreenState();
 }
 
 class _SellScreenState extends State<SellScreen> {
-  int segment = 0;
-  bool tradesOn = false;
+  final form = GlobalKey<FormState>();
+  final title = TextEditingController(),
+      price = TextEditingController(),
+      description = TextEditingController();
+  String category = 'Electronics';
+  String? zone, photo;
+  Condition condition = Condition.good;
+  bool saving = false;
+  @override
+  void initState() {
+    super.initState();
+    final repo = context.read<Repository>();
+    zone = repo.pickupZones.firstOrNull;
+    final listing = widget.editingId == null
+        ? null
+        : repo.getListing(widget.editingId!);
+    if (listing != null) {
+      title.text = listing.title;
+      price.text = listing.price.toString();
+      description.text = listing.description;
+      category = listing.tag;
+      condition = listing.condition;
+      zone = listing.zone;
+      photo = listing.imageSource;
+    }
+  }
+
+  @override
+  void dispose() {
+    title.dispose();
+    price.dispose();
+    description.dispose();
+    super.dispose();
+  }
+
+  void error(Object e) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
+    }
+  }
+
+  Future<void> choosePhoto() async {
+    try {
+      final file = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1200,
+        maxHeight: 1200,
+        imageQuality: 75,
+      );
+      if (file == null) return;
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 1500000) {
+        throw ArgumentError(
+          'Choose a photo smaller than 1.5 MB for this local preview.',
+        );
+      }
+      if (mounted) {
+        setState(() => photo = 'data:image/jpeg;base64,${base64Encode(bytes)}');
+      }
+    } catch (e) {
+      error(e);
+    }
+  }
+
+  Future<void> save() async {
+    if (!form.currentState!.validate() || saving) return;
+    setState(() => saving = true);
+    try {
+      await context.read<Repository>().createListing(
+        title: title.text,
+        price: int.parse(price.text.trim()),
+        condition: condition,
+        category: category,
+        description: description.text,
+        acceptsTrades: false,
+        pickupZoneName: zone!,
+        imageSource: photo,
+        editingId: widget.editingId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Listing saved on this device.')),
+      );
+      context.go('/');
+    } catch (e) {
+      error(e);
+    } finally {
+      if (mounted) setState(() => saving = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-
+    final repo = context.watch<Repository>();
     return ScreenScaffold(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-            child: Text(
-              'Sell an item',
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: c.ink,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Form(
+          key: form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.editingId != null)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: saving
+                        ? null
+                        : () => context.canPop()
+                              ? context.pop()
+                              : context.go('/profile'),
+                    icon: const Icon(Icons.arrow_back),
+                    label: const Text('Cancel editing'),
+                  ),
+                ),
+              Text(
+                widget.editingId == null
+                    ? 'Make room for something new.'
+                    : 'Edit your listing',
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.accent,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
+              const SizedBox(height: 8),
+              Text('Listing at ${repo.me.school}'),
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                onPressed: saving ? null : choosePhoto,
+                icon: const Icon(Icons.add_a_photo_outlined),
+                label: Text(photo == null ? 'Add a photo' : 'Change photo'),
+              ),
+              if (photo != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: photo!.startsWith('data:')
+                        ? Image.memory(
+                            base64Decode(photo!.split(',').last),
+                            height: 180,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.asset(photo!, height: 180, fit: BoxFit.cover),
                   ),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.accent,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: title,
+                maxLength: 100,
+                decoration: const InputDecoration(
+                  labelText: 'Title',
+                  hintText: 'What are you selling?',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => (v?.trim().length ?? 0) < 3
+                    ? 'Use at least 3 characters.'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: price,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Price in USD',
+                  prefixText: '\$ ',
+                  helperText: 'Whole dollars. Enter 0 to give it away.',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) {
+                  final amount = int.tryParse(v?.trim() ?? '');
+                  return amount == null || amount < 0 || amount > 100000
+                      ? 'Enter a whole number from 0 to 100000.'
+                      : null;
+                },
+              ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<String>(
+                initialValue: category,
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
+                items: categories
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .toList(),
+                onChanged: (v) => category = v!,
+              ),
+              const SizedBox(height: 20),
+              DropdownButtonFormField<Condition>(
+                initialValue: condition,
+                decoration: const InputDecoration(
+                  labelText: 'Condition',
+                  border: OutlineInputBorder(),
+                ),
+                items: Condition.values
+                    .map(
+                      (v) => DropdownMenuItem(value: v, child: Text(v.label)),
+                    )
+                    .toList(),
+                onChanged: (v) => condition = v!,
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: description,
+                minLines: 4,
+                maxLines: 6,
+                maxLength: 2000,
+                decoration: const InputDecoration(
+                  labelText: 'Description',
+                  hintText:
+                      'Condition, what is included, and anything a buyer should know.',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => (v?.trim().length ?? 0) < 10
+                    ? 'Add at least 10 characters.'
+                    : null,
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: zone,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Pickup location',
+                  border: OutlineInputBorder(),
+                ),
+                items: repo.pickupZones
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .toList(),
+                validator: (v) =>
+                    v == null ? 'Choose a pickup location.' : null,
+                onChanged: (v) => zone = v,
+              ),
+              const SizedBox(height: 24),
+              FilledButton(
+                onPressed: saving ? null : save,
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.all(18),
+                ),
+                child: Text(
+                  saving
+                      ? 'Saving…'
+                      : widget.editingId == null
+                      ? 'Post listing'
+                      : 'Save changes',
+                ),
+              ),
+              if (repo.isDemo)
+                const Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text(
+                    'Local demo: your listing is saved on this device and is not publicly posted.',
+                    style: TextStyle(fontSize: 12),
                   ),
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: c.line,
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            ],
           ),
-          SizedBox(
-            height: 80,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              children: [
-                _PhotoSlot(border: c.accent, iconColor: c.accent),
-                const SizedBox(width: 10),
-                _PhotoSlot(border: c.line, iconColor: c.inkFaint),
-                const SizedBox(width: 10),
-                _PhotoSlot(border: c.line, iconColor: c.inkFaint),
-                const SizedBox(width: 10),
-                _PhotoSlot(border: c.line, iconColor: c.inkFaint),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _Field(label: 'Title', value: 'Mini fridge, 3.2 cu ft'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _Field(label: 'Price', value: '\$55', bare: true),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _Field(label: 'Condition', value: 'Good', bare: true),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          _Field(label: 'Category', value: 'Dorm essentials'),
-          _Field(
-            label: 'Description',
-            value:
-                'Used one year in Rappahannock Dorms. Fridge and small freezer compartment both work great, minor scuff on the door.',
-            multiline: true,
-          ),
-          Container(
-            margin: const EdgeInsets.fromLTRB(18, 6, 18, 14),
-            padding: const EdgeInsets.all(3),
-            decoration: BoxDecoration(
-              color: c.surface2,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Row(
-              children: [
-                for (var i = 0; i < _segments.length; i++)
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => segment = i),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 9),
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: segment == i ? c.surface : null,
-                          borderRadius: BorderRadius.circular(11),
-                        ),
-                        child: Text(
-                          _segments[i],
-                          textAlign: TextAlign.center,
-                          style: GoogleFonts.inter(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            color: segment == i ? c.ink : c.inkSoft,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          Container(
-            margin: const EdgeInsets.symmetric(horizontal: 18),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: c.surface,
-              border: Border.all(color: c.line),
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Accept trade offers',
-                        style: GoogleFonts.inter(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: c.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Buyers can offer their own listings instead of cash',
-                        style: GoogleFonts.inter(
-                          fontSize: 11.5,
-                          color: c.inkFaint,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(
-                  value: tradesOn,
-                  onChanged: (v) => setState(() => tradesOn = v),
-                  activeThumbColor: c.accent,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-          _Field(label: 'Pickup zone', value: 'Rappahannock Dorms'),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 6, 18, 0),
-            child: GradientButton(
-              label: 'Post listing',
-              onPressed: () async {
-                // Fields above are static display text, not a real form yet
-                // (pre-existing gap) — post whatever's currently shown.
-                await context.read<Repository>().createListing(
-                  title: 'Mini fridge, 3.2 cu ft',
-                  price: 55,
-                  condition: Condition.good,
-                  category: 'Dorm essentials',
-                  description:
-                      'Used one year in Rappahannock Dorms. Fridge and small '
-                      'freezer compartment both work great, minor scuff on '
-                      'the door.',
-                  acceptsTrades: tradesOn,
-                  pickupZoneName: 'Rappahannock Dorms',
-                );
-                if (context.mounted) context.go('/');
-              },
-            ),
-          ),
-        ],
+        ),
       ),
-    );
-  }
-}
-
-class _PhotoSlot extends StatelessWidget {
-  final Color border, iconColor;
-  const _PhotoSlot({required this.border, required this.iconColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 80,
-      height: 80,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        border: Border.all(color: border, width: 1.5, style: BorderStyle.solid),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Icon(Icons.add_rounded, size: 22, color: iconColor),
-    );
-  }
-}
-
-class _Field extends StatelessWidget {
-  final String label, value;
-  final bool multiline, bare;
-  const _Field({
-    required this.label,
-    required this.value,
-    this.multiline = false,
-    this.bare = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final field = Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: c.surface,
-        border: Border.all(color: c.line),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: GoogleFonts.inter(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
-              color: c.inkFaint,
-              letterSpacing: 0.4,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            maxLines: multiline ? 4 : 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.inter(fontSize: 14.5, color: c.ink),
-          ),
-        ],
-      ),
-    );
-    if (bare) return field;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
-      child: field,
     );
   }
 }

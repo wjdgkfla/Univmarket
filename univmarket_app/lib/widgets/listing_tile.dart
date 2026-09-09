@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
 import '../theme/tokens.dart';
-import 'category_art.dart';
+import 'listing_image.dart';
+import 'async_action.dart';
 
 class ListingTile extends StatelessWidget {
   final Listing listing;
@@ -33,13 +34,12 @@ class ListingTile extends StatelessWidget {
             children: [
               AspectRatio(
                 aspectRatio: 1,
-                child: CategoryArt(
-                  icon: listing.icon,
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(AppRadius.card),
+                child: ListingImage(
+                  listing: listing,
+                  onSave: () => runAction(
+                    context,
+                    () => context.read<Repository>().toggleFavorite(listing.id),
                   ),
-                  onSave: () =>
-                      context.read<Repository>().toggleFavorite(listing.id),
                   saved: saved,
                 ),
               ),
@@ -52,7 +52,7 @@ class ListingTile extends StatelessWidget {
                       listing.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
+                      style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
                         height: 1.25,
@@ -65,7 +65,7 @@ class ListingTile extends StatelessWidget {
                       children: [
                         Text(
                           '\$${listing.price}',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
                             color: c.ink,
@@ -73,7 +73,7 @@ class ListingTile extends StatelessWidget {
                         ),
                         Text(
                           listing.condition.label.toUpperCase(),
-                          style: GoogleFonts.inter(
+                          style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w700,
                             color: c.inkFaint,

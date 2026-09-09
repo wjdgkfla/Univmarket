@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/tokens.dart';
 
 class ChipChoice extends StatelessWidget {
@@ -30,7 +30,7 @@ class ChipChoice extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: GoogleFonts.inter(
+            style: TextStyle(
               color: active ? c.bg : c.inkSoft,
               fontWeight: FontWeight.w600,
               fontSize: 12.5,

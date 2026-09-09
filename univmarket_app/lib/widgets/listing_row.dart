@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../data/models.dart';
 import '../theme/tokens.dart';
-import 'category_art.dart';
+import 'listing_image.dart';
 
 class ListingRow extends StatelessWidget {
   final Listing listing;
@@ -29,10 +29,7 @@ class ListingRow extends StatelessWidget {
               SizedBox(
                 width: 66,
                 height: 66,
-                child: CategoryArt(
-                  icon: listing.icon,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
+                child: ListingImage(listing: listing),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -43,7 +40,7 @@ class ListingRow extends StatelessWidget {
                       listing.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
+                      style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                         color: c.ink,
@@ -54,12 +51,12 @@ class ListingRow extends StatelessWidget {
                       '${listing.zone} · ${listing.condition.label}${listing.trades ? ' · Trades ok' : ''}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(fontSize: 12, color: c.inkSoft),
+                      style: TextStyle(fontSize: 12, color: c.inkSoft),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       '\$${listing.price}',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: c.ink,

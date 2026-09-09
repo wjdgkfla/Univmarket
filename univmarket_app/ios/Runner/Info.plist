@@ -6,7 +6,7 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
-	<key>CFBundleDisplayName</key>
+	<key>NSPhotoLibraryUsageDescription</key><string>Choose a photo of the item you want to list on UnivMarket.</string><key>CFBundleDisplayName</key>
 	<string>Univmarket App</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>

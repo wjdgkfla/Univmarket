@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
@@ -9,6 +9,7 @@ import '../data/supabase_client.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
 import '../widgets/pill.dart';
+import '../widgets/async_action.dart';
 
 class ChatScreen extends StatefulWidget {
   final String id;
@@ -26,10 +27,12 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    if (context.read<Repository>().isDemo) return;
     // Live-update this conversation: new messages and offer status changes
     // (accept/decline from the other party) trigger a re-fetch rather than
     // waiting for the next full refresh.
-    void refresh(_) => context.read<Repository>().refreshConversation(widget.id);
+    void refresh(_) =>
+        context.read<Repository>().refreshConversation(widget.id);
     _messagesSub = supabase
         .from('messages')
         .stream(primaryKey: ['id'])
@@ -104,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       children: [
                         Text(
                           seller?.name ?? '',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14.5,
                             color: c.ink,
@@ -112,10 +115,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                         Text(
                           '${listing?.title ?? ''} · \$${listing?.price ?? 0}',
-                          style: GoogleFonts.inter(
-                            fontSize: 11.5,
-                            color: c.inkSoft,
-                          ),
+                          style: TextStyle(fontSize: 11.5, color: c.inkSoft),
                         ),
                       ],
                     ),
@@ -149,14 +149,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   Expanded(
                     child: TextField(
                       controller: draftController,
-                      style: GoogleFonts.inter(color: c.ink, fontSize: 13.5),
+                      style: TextStyle(color: c.ink, fontSize: 13.5),
                       decoration: InputDecoration(
                         hintText:
                             'Message ${seller?.name.split(' ').first ?? ''}…',
-                        hintStyle: GoogleFonts.inter(
-                          color: c.inkFaint,
-                          fontSize: 13.5,
-                        ),
+                        hintStyle: TextStyle(color: c.inkFaint, fontSize: 13.5),
                         filled: true,
                         fillColor: c.surface2,
                         contentPadding: const EdgeInsets.symmetric(
@@ -180,14 +177,22 @@ class _ChatScreenState extends State<ChatScreen> {
                     label: 'Send message',
                     child: InkWell(
                       customBorder: const CircleBorder(),
-                      onTap: () {
+                      onTap: () async {
                         final text = draftController.text.trim();
                         if (text.isEmpty) return;
-                        context.read<Repository>().sendMessage(
-                          conversation.id,
-                          text,
-                        );
-                        draftController.clear();
+                        try {
+                          await context.read<Repository>().sendMessage(
+                            conversation.id,
+                            text,
+                          );
+                          if (mounted) draftController.clear();
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString())),
+                            );
+                          }
+                        }
                       },
                       child: Container(
                         width: 38,
@@ -237,7 +242,7 @@ class _MessageBubble extends StatelessWidget {
           child: Text(
             m.body,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 11.5, color: c.inkFaint),
+            style: TextStyle(fontSize: 11.5, color: c.inkFaint),
           ),
         ),
       );
@@ -275,7 +280,7 @@ class _MessageBubble extends StatelessWidget {
                       children: [
                         Text(
                           'CASH OFFER',
-                          style: GoogleFonts.spaceGrotesk(
+                          style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
                             color: c.inkFaint,
@@ -288,7 +293,7 @@ class _MessageBubble extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       '\$${m.amount}',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: c.ink,
@@ -296,10 +301,7 @@ class _MessageBubble extends StatelessWidget {
                     ),
                     Text(
                       'for ${listing?.title ?? ''}',
-                      style: GoogleFonts.inter(
-                        fontSize: 11.5,
-                        color: c.inkSoft,
-                      ),
+                      style: TextStyle(fontSize: 11.5, color: c.inkSoft),
                     ),
                   ],
                 ),
@@ -321,9 +323,12 @@ class _MessageBubble extends StatelessWidget {
                           label: 'Decline',
                           bg: c.surface2,
                           fg: c.inkSoft,
-                          onTap: () => context.read<Repository>().declineOffer(
-                            conversationId,
-                            m.id,
+                          onTap: () => runAction(
+                            context,
+                            () => context.read<Repository>().declineOffer(
+                              conversationId,
+                              m.id,
+                            ),
                           ),
                         ),
                       ),
@@ -333,9 +338,12 @@ class _MessageBubble extends StatelessWidget {
                           label: 'Accept',
                           bg: c.good,
                           fg: Colors.white,
-                          onTap: () => context.read<Repository>().acceptOffer(
-                            conversationId,
-                            m.id,
+                          onTap: () => runAction(
+                            context,
+                            () => context.read<Repository>().acceptOffer(
+                              conversationId,
+                              m.id,
+                            ),
                           ),
                         ),
                       ),
@@ -369,7 +377,7 @@ class _MessageBubble extends StatelessWidget {
           ),
           child: Text(
             t.body,
-            style: GoogleFonts.inter(
+            style: TextStyle(
               fontSize: 13.5,
               height: 1.4,
               color: mine ? Colors.white : c.ink,
@@ -405,7 +413,7 @@ class _TicketButton extends StatelessWidget {
           child: Text(
             label,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w700,
               color: fg,

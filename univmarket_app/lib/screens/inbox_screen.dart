@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
@@ -44,7 +44,7 @@ class InboxScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
             child: Text(
               'Inbox',
-              style: GoogleFonts.spaceGrotesk(
+              style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
                 color: c.ink,
@@ -88,7 +88,7 @@ class _ConversationRow extends StatelessWidget {
                 children: [
                   Text(
                     seller?.name ?? 'Unknown',
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 13.5,
                       color: c.ink,
@@ -99,7 +99,7 @@ class _ConversationRow extends StatelessWidget {
                     _lastMessage(conv),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(fontSize: 12.5, color: c.inkSoft),
+                    style: TextStyle(fontSize: 12.5, color: c.inkSoft),
                   ),
                 ],
               ),

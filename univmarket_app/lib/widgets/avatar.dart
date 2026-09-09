@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/tokens.dart';
 
 class Avatar extends StatelessWidget {
@@ -23,7 +23,7 @@ class Avatar extends StatelessWidget {
       ),
       child: Text(
         initials,
-        style: GoogleFonts.spaceGrotesk(
+        style: TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w700,
           fontSize: size * 0.36,

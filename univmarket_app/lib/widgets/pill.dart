@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
 import '../theme/tokens.dart';
 
 enum PillTone { good, warn, bad, neutral, accent }
@@ -27,7 +27,7 @@ class Pill extends StatelessWidget {
       ),
       child: Text(
         label.toUpperCase(),
-        style: GoogleFonts.inter(
+        style: TextStyle(
           color: fg,
           fontSize: 10.5,
           fontWeight: FontWeight.w700,

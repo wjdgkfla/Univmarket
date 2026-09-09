@@ -1,15 +1,15 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Publishable (anon-safe) key — RLS enforces all real security, so this is
-/// safe to embed client-side.
-const _supabaseUrl = 'https://amzvnsphtaxkjzmsjsie.supabase.co';
-const _supabaseAnonKey = 'sb_publishable_ACllYW7hhMR1_ORSMvx0OA_skxkyVJW';
+const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+const _supabaseKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
 
 Future<void> initSupabase() async {
-  await Supabase.initialize(
-    url: _supabaseUrl,
-    publishableKey: _supabaseAnonKey,
-  );
+  if (_supabaseUrl.isEmpty || _supabaseKey.isEmpty) {
+    throw StateError(
+      'Live mode requires SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.',
+    );
+  }
+  await Supabase.initialize(url: _supabaseUrl, publishableKey: _supabaseKey);
 }
 
 SupabaseClient get supabase => Supabase.instance.client;

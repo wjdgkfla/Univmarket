@@ -31,14 +31,14 @@ class AppColors {
   });
 
   static const light = AppColors(
-    bg: Color(0xFFF3F3F6),
+    bg: Color(0xFFF8F9F7),
     surface: Color(0xFFFFFFFF),
     surface2: Color(0xFFEBEDF1),
     ink: Color(0xFF15161B),
     inkSoft: Color(0xFF5A616F),
-    inkFaint: Color(0xFF9AA0AC),
+    inkFaint: Color(0xFF69717E),
     line: Color(0xFFE5E7EE),
-    accent: Color(0xFFF0491C),
+    accent: Color(0xFFBD431D),
     accentDeep: Color(0xFFD43C13),
     accentInk: Color(0xFFFFFFFF),
     accentWash: Color(0xFFFDE7DF),
@@ -83,7 +83,7 @@ class AppRadius {
 
 /// Category art mesh gradients — three-stop, matching the web prototype's tiles.
 const Map<String, List<Color>> categoryMesh = {
-  'book': [Color(0xFFFFE3D6), Color(0xFFFF9A6E), Color(0xFFF0491C)],
+  'book': [Color(0xFFFFE3D6), Color(0xFFFF9A6E), Color(0xFFBD431D)],
   'headphones': [Color(0xFFE8E2FB), Color(0xFFB39DFB), Color(0xFF7C5FE0)],
   'chair': [Color(0xFFFDE8CF), Color(0xFFF4BD7A), Color(0xFFE08A2E)],
   'bike': [Color(0xFFDCF3E5), Color(0xFF7FD9A8), Color(0xFF1C9A5B)],

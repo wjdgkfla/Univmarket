@@ -38,10 +38,15 @@ OfferStatus _offerStatusFromDb(String v) => switch (v) {
 };
 
 String _initialsFor(String name) {
-  final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return '?';
   if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-  return (parts.first.substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
+  return (parts.first.substring(0, 1) + parts.last.substring(0, 1))
+      .toUpperCase();
 }
 
 /// Supabase-backed repository. Reads stay synchronous by deliberate design
@@ -51,12 +56,46 @@ String _initialsFor(String name) {
 /// getter that a build() method calls directly (getSeller is the one
 /// exception, and it only *kicks off* a fetch — it still returns
 /// synchronously from cache).
+const categoryIcons = {
+  'Textbooks': 'book',
+  'Electronics': 'headphones',
+  'Furniture': 'chair',
+  'Bikes': 'bike',
+  'Dorm': 'lamp',
+  'Apparel': 'shirt',
+  'Bags': 'bag',
+};
+const categories = [
+  'Textbooks',
+  'Electronics',
+  'Furniture',
+  'Bikes',
+  'Dorm',
+  'Apparel',
+  'Bags',
+];
+
 class Repository extends ChangeNotifier {
+  Repository.offline();
+  bool get isDemo => false;
+  String get universityId => _universityId ?? '';
+  Map<String, String> get universities => {_universityId ?? '': me.school};
+  List<String> get pickupZones => _zoneNames.values.toList();
+  Future<void> selectUniversity(String id) async => throw UnsupportedError(
+    'University membership is not configured on this backend.',
+  );
+  Future<void> markSold(String id) async => throw UnsupportedError(
+    'Listing management is not configured on this backend.',
+  );
+  Future<void> sendOffer(String conversationId, int amount) async =>
+      throw UnsupportedError(
+        'Offer creation is not configured on this backend.',
+      );
   Repository() {
     _bootstrap();
   }
 
-  final SupabaseClient _db = supabase;
+  SupabaseClient get _db => supabase;
 
   /// True once the initial auth + data bootstrap has finished (success or
   /// failure). Screens don't currently gate on this directly — main.dart's
@@ -231,9 +270,10 @@ class Repository extends ChangeNotifier {
           .eq('listing_id', listingId);
       _favorites.remove(listingId);
     } else {
-      await _db
-          .from('favorites')
-          .insert({'user_id': _me.id, 'listing_id': listingId});
+      await _db.from('favorites').insert({
+        'user_id': _me.id,
+        'listing_id': listingId,
+      });
       _favorites.add(listingId);
     }
     notifyListeners();
@@ -272,10 +312,10 @@ class Repository extends ChangeNotifier {
     ];
     var offers = <String, Map<String, dynamic>>{};
     if (offerIds.isNotEmpty) {
-      final offerRows = await _db.from('offers').select().inFilter(
-        'id',
-        offerIds,
-      );
+      final offerRows = await _db
+          .from('offers')
+          .select()
+          .inFilter('id', offerIds);
       offers = {for (final o in offerRows) o['id'] as String: o};
     }
 
@@ -329,10 +369,7 @@ class Repository extends ChangeNotifier {
   /// this is necessarily async — starting a conversation is a server call.
   Future<String> conversationForListing(String listingId) async {
     final id =
-        await _db.rpc(
-              'start_conversation',
-              params: {'p_listing_id': listingId},
-            )
+        await _db.rpc('start_conversation', params: {'p_listing_id': listingId})
             as String;
     await refreshConversation(id);
     return id;
@@ -393,7 +430,14 @@ class Repository extends ChangeNotifier {
     required String description,
     required bool acceptsTrades,
     required String pickupZoneName,
+    String? imageSource,
+    String? editingId,
   }) async {
+    if (editingId != null || imageSource != null) {
+      throw UnsupportedError(
+        'Photo uploads and editing require a configured live adapter.',
+      );
+    }
     final zoneId = _zoneNames.entries
         .firstWhere(
           (e) => e.value == pickupZoneName,

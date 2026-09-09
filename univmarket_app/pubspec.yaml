@@ -1,5 +1,5 @@
 name: univmarket_app
-description: "A new Flutter project."
+description: "Native university marketplace with a persistent local preview."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -34,12 +34,15 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
-  google_fonts: ^6.2.1
+
   go_router: ^14.6.2
   provider: ^6.1.2
-  supabase_flutter: ^2.8.0
+  supabase_flutter: 2.17.1
+  shared_preferences: ^2.5.3
+  image_picker: ^1.2.1
 
 dev_dependencies:
+  shared_preferences_platform_interface: 2.4.2
   flutter_test:
     sdk: flutter
   integration_test:
@@ -62,6 +65,8 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+  assets:
+    - assets/images/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

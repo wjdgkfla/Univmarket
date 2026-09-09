@@ -1,143 +1,120 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
-import '../theme/tokens.dart';
-import '../widgets/chip_choice.dart';
 import '../widgets/listing_row.dart';
 import '../widgets/screen_scaffold.dart';
 
-const _filters = [
-  'Under \$50',
-  'Near Library Steps',
-  'Accepts trades',
-  'Like New +',
-];
-
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
-
   @override
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
 class _SearchScreenState extends State<SearchScreen> {
-  int activeFilter = 0;
-  final _controller = TextEditingController(text: 'mini fridge');
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
+  String query = '', sort = 'Newest';
+  bool under50 = false, likeNew = false, free = false;
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    final repo = context.watch<Repository>();
-    final all = repo.listListings();
-    final results = all.length > 6 ? all.sublist(2, 7) : const <Listing>[];
-
+    final results = context
+        .watch<Repository>()
+        .listListings()
+        .where(
+          (l) =>
+              l.status == 'available' &&
+              ('${l.title} ${l.description} ${l.tag}').toLowerCase().contains(
+                query.trim().toLowerCase(),
+              ) &&
+              (!under50 || l.price < 50) &&
+              (!free || l.price == 0) &&
+              (!likeNew || l.condition == Condition.likeNew),
+        )
+        .toList();
+    if (sort == 'Price: low to high') {
+      results.sort((a, b) => a.price.compareTo(b.price));
+    }
+    if (sort == 'Price: high to low') {
+      results.sort((a, b) => b.price.compareTo(a.price));
+    }
     return ScreenScaffold(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-            child: Text(
-              'Search',
-              style: GoogleFonts.spaceGrotesk(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: c.ink,
-              ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Find your next favorite',
+              style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: c.surface,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
-                border: Border.all(color: c.line, width: 1.5),
+            const SizedBox(height: 18),
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Search listings',
+                hintText: 'Textbooks, a bike, headphones…',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(),
               ),
-              child: Row(
-                children: [
-                  Icon(Icons.search_rounded, size: 16, color: c.inkFaint),
-                  const SizedBox(width: 9),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      style: GoogleFonts.inter(color: c.ink, fontSize: 14),
-                      decoration: InputDecoration(
-                        hintText: 'mini fridge, calc textbook, bike…',
-                        hintStyle: GoogleFonts.inter(
-                          color: c.inkFaint,
-                          fontSize: 14,
+              onChanged: (v) => setState(() => query = v),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                FilterChip(
+                  label: const Text('Under \$50'),
+                  selected: under50,
+                  onSelected: (v) => setState(() => under50 = v),
+                ),
+                FilterChip(
+                  label: const Text('Like new'),
+                  selected: likeNew,
+                  onSelected: (v) => setState(() => likeNew = v),
+                ),
+                FilterChip(
+                  label: const Text('Free'),
+                  selected: free,
+                  onSelected: (v) => setState(() => free = v),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${results.length} results',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                DropdownButton<String>(
+                  value: sort,
+                  items: ['Newest', 'Price: low to high', 'Price: high to low']
+                      .map(
+                        (v) => DropdownMenuItem(
+                          value: v,
+                          child: Text(v, style: const TextStyle(fontSize: 12)),
                         ),
-                        border: InputBorder.none,
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          SizedBox(
-            height: 40,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              itemCount: _filters.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 8),
-              itemBuilder: (context, i) => ChipChoice(
-                label: _filters[i],
-                active: i == activeFilter,
-                onTap: () => setState(() => activeFilter = i),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${results.length} results',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: c.ink,
-                  ),
-                ),
-                Text(
-                  'Sort: Newest',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: c.accent,
-                  ),
+                      )
+                      .toList(),
+                  onChanged: (v) => setState(() => sort = v!),
                 ),
               ],
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            child: Column(
-              children: [
-                for (final l in results)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: ListingRow(listing: l),
+            if (results.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Center(
+                  child: Text(
+                    'No matches. Try another search or remove a filter.',
                   ),
-              ],
-            ),
-          ),
-        ],
+                ),
+              ),
+            for (final l in results)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ListingRow(listing: l),
+              ),
+          ],
+        ),
       ),
     );
   }
