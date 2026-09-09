@@ -1,15 +1,21 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'backend_config.dart';
 
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const _supabaseKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+bool _initialized = false;
 
 Future<void> initSupabase() async {
-  if (_supabaseUrl.isEmpty || _supabaseKey.isEmpty) {
-    throw StateError(
-      'Live mode requires SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY.',
-    );
-  }
-  await Supabase.initialize(url: _supabaseUrl, publishableKey: _supabaseKey);
+  if (_initialized) return;
+  final config = BackendConfig.validate(
+    url: _supabaseUrl,
+    publishableKey: _supabaseKey,
+  );
+  await Supabase.initialize(
+    url: config.url,
+    publishableKey: config.publishableKey,
+  );
+  _initialized = true;
 }
 
 SupabaseClient get supabase => Supabase.instance.client;

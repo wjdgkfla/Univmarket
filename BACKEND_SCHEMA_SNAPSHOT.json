@@ -1,0 +1,375 @@
+{
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "qual": "active",
+      "roles": [
+        "public"
+      ],
+      "tablename": "universities",
+      "permissive": "PERMISSIVE",
+      "policyname": "universities_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "active",
+      "roles": [
+        "public"
+      ],
+      "tablename": "campuses",
+      "permissive": "PERMISSIVE",
+      "policyname": "campuses_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "active",
+      "roles": [
+        "public"
+      ],
+      "tablename": "pickup_zones",
+      "permissive": "PERMISSIVE",
+      "policyname": "pickup_zones_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_owner_insert",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = id)"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "((auth.uid())::text = id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_owner_update",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((auth.uid())::text = id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "profiles",
+      "permissive": "PERMISSIVE",
+      "policyname": "profiles_owner_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "((seller_id = (auth.uid())::text) AND (NOT (EXISTS ( SELECT 1\n   FROM (transaction_listings tl\n     JOIN transactions t ON ((t.id = tl.transaction_id)))\n  WHERE ((tl.listing_id = listings.id) AND (t.status = ANY (ARRAY['reserved'::text, 'meetup_scheduled'::text])))))))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "listings",
+      "permissive": "PERMISSIVE",
+      "policyname": "listings_update_owner",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "listings",
+      "permissive": "PERMISSIVE",
+      "policyname": "listings_insert",
+      "schemaname": "public",
+      "with_check": "((seller_id = (auth.uid())::text) AND is_active_user((auth.uid())::text))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(((moderation_state = 'visible'::text) AND (deleted_at IS NULL) AND (university_id = ( SELECT profiles.university_id\n   FROM profiles\n  WHERE (profiles.id = (auth.uid())::text)))) OR (seller_id = (auth.uid())::text))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "listings",
+      "permissive": "PERMISSIVE",
+      "policyname": "listings_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(((auth.uid())::text = buyer_id) OR ((auth.uid())::text = seller_id))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "conversations",
+      "permissive": "PERMISSIVE",
+      "policyname": "conversations_participants",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(((auth.uid())::text = from_user_id) OR ((auth.uid())::text = to_user_id))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "messages",
+      "permissive": "PERMISSIVE",
+      "policyname": "messages_participants",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM offers o\n  WHERE ((o.id = offer_items.offer_id) AND (((auth.uid())::text = o.from_user_id) OR ((auth.uid())::text = o.to_user_id)))))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "offer_items",
+      "permissive": "PERMISSIVE",
+      "policyname": "offer_items_participants",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(((auth.uid())::text = buyer_id) OR ((auth.uid())::text = seller_id))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "transactions",
+      "permissive": "PERMISSIVE",
+      "policyname": "transactions_participants",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM transactions t\n  WHERE ((t.id = transaction_listings.transaction_id) AND (((auth.uid())::text = t.buyer_id) OR ((auth.uid())::text = t.seller_id)))))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "transaction_listings",
+      "permissive": "PERMISSIVE",
+      "policyname": "transaction_listings_participants",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(((auth.uid())::text = reviewer_id) OR ((auth.uid())::text = reviewee_id))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "ratings",
+      "permissive": "PERMISSIVE",
+      "policyname": "ratings_participants",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "reports",
+      "permissive": "PERMISSIVE",
+      "policyname": "reports_own_insert",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = reporter_id)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((auth.uid())::text = reporter_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "reports",
+      "permissive": "PERMISSIVE",
+      "policyname": "reports_own_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "DELETE",
+      "qual": "((auth.uid())::text = blocker_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "blocks",
+      "permissive": "PERMISSIVE",
+      "policyname": "blocks_own_delete",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "public"
+      ],
+      "tablename": "blocks",
+      "permissive": "PERMISSIVE",
+      "policyname": "blocks_own_insert",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = blocker_id)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((auth.uid())::text = blocker_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "blocks",
+      "permissive": "PERMISSIVE",
+      "policyname": "blocks_own_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "((auth.uid())::text = user_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "favorites",
+      "permissive": "PERMISSIVE",
+      "policyname": "favorites_owner_all",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = user_id)"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "((auth.uid())::text = user_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "saved_searches",
+      "permissive": "PERMISSIVE",
+      "policyname": "saved_searches_owner_all",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = user_id)"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "((auth.uid())::text = user_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "price_watches",
+      "permissive": "PERMISSIVE",
+      "policyname": "price_watches_owner_all",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = user_id)"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "((auth.uid())::text = user_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "notifications",
+      "permissive": "PERMISSIVE",
+      "policyname": "notifications_owner_update",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((auth.uid())::text = user_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "notifications",
+      "permissive": "PERMISSIVE",
+      "policyname": "notifications_owner_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "((auth.uid())::text = user_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "notification_preferences",
+      "permissive": "PERMISSIVE",
+      "policyname": "notification_preferences_owner_all",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = user_id)"
+    },
+    {
+      "cmd": "ALL",
+      "qual": "((auth.uid())::text = user_id)",
+      "roles": [
+        "public"
+      ],
+      "tablename": "device_push_tokens",
+      "permissive": "PERMISSIVE",
+      "policyname": "device_push_tokens_owner_all",
+      "schemaname": "public",
+      "with_check": "((auth.uid())::text = user_id)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(((auth.uid())::text = from_user_id) OR ((auth.uid())::text = to_user_id))",
+      "roles": [
+        "public"
+      ],
+      "tablename": "offers",
+      "permissive": "PERMISSIVE",
+      "policyname": "offers_participants",
+      "schemaname": "public",
+      "with_check": null
+    }
+  ],
+  "triggers": null,
+  "functions": [
+    {
+      "name": "is_blocked",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_blocked(p_a text, p_b text)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$ select exists (\n       select 1 from blocks\n       where (blocker_id = p_a and blocked_id = p_b)\n          or (blocker_id = p_b and blocked_id = p_a)\n     ) $function$\n"
+    },
+    {
+      "name": "increment_view_count",
+      "definition": "CREATE OR REPLACE FUNCTION public.increment_view_count(p_listing_id text)\n RETURNS void\n LANGUAGE sql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$ update listings set view_count = view_count + 1 where id = p_listing_id $function$\n"
+    },
+    {
+      "name": "is_active_user",
+      "definition": "CREATE OR REPLACE FUNCTION public.is_active_user(uid text)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$ select exists (select 1 from profiles where id = uid and account_state = 'active') $function$\n"
+    },
+    {
+      "name": "start_conversation",
+      "definition": "CREATE OR REPLACE FUNCTION public.start_conversation(p_listing_id text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare\n  v_actor text := auth.uid()::text;\n  v_seller text;\n  v_conv_id text;\nbegin\n  if not is_active_user(v_actor) then\n    raise exception 'account not active';\n  end if;\n\n  select seller_id into v_seller from listings where id = p_listing_id and deleted_at is null;\n  if v_seller is null then\n    raise exception 'listing not found';\n  end if;\n  if v_seller = v_actor then\n    raise exception 'cannot message yourself about your own listing';\n  end if;\n  if is_blocked(v_actor, v_seller) then\n    raise exception 'messaging unavailable';\n  end if;\n\n  select id into v_conv_id from conversations where listing_id = p_listing_id and buyer_id = v_actor;\n  if v_conv_id is not null then\n    return v_conv_id;\n  end if;\n\n  insert into conversations (listing_id, buyer_id, seller_id)\n  values (p_listing_id, v_actor, v_seller)\n  returning id into v_conv_id;\n  return v_conv_id;\nend;\n$function$\n"
+    },
+    {
+      "name": "create_message",
+      "definition": "CREATE OR REPLACE FUNCTION public.create_message(p_conversation_id text, p_body text)\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare\n  v_actor text := auth.uid()::text;\n  v_buyer text; v_seller text; v_to text; v_msg_id text;\nbegin\n  if not is_active_user(v_actor) then raise exception 'account not active'; end if;\n\n  select buyer_id, seller_id into v_buyer, v_seller from conversations where id = p_conversation_id;\n  if v_buyer is null then raise exception 'conversation not found'; end if;\n  if v_actor not in (v_buyer, v_seller) then raise exception 'not a participant'; end if;\n\n  v_to := case when v_actor = v_buyer then v_seller else v_buyer end;\n  if is_blocked(v_actor, v_to) then raise exception 'messaging unavailable'; end if;\n\n  insert into messages (conversation_id, from_user_id, to_user_id, body, type)\n  values (p_conversation_id, v_actor, v_to, p_body, 'text')\n  returning id into v_msg_id;\n\n  update conversations set last_message = p_body, updated_at = now() where id = p_conversation_id;\n  return v_msg_id;\nend;\n$function$\n"
+    },
+    {
+      "name": "send_offer",
+      "definition": "CREATE OR REPLACE FUNCTION public.send_offer(p_conversation_id text, p_kind text, p_cash_amount numeric DEFAULT 0, p_offered_listing_ids text[] DEFAULT '{}'::text[])\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare\n  v_actor text := auth.uid()::text;\n  v_buyer text; v_seller text; v_listing_id text; v_to text; v_offer_id text; v_item text;\nbegin\n  if not is_active_user(v_actor) then raise exception 'account not active'; end if;\n  if p_kind not in ('cash','trade','trade_plus_cash') then raise exception 'invalid offer kind'; end if;\n  if array_length(p_offered_listing_ids, 1) > 3 then raise exception 'max 3 offered items'; end if;\n\n  select buyer_id, seller_id, listing_id into v_buyer, v_seller, v_listing_id\n  from conversations where id = p_conversation_id;\n  if v_buyer is null then raise exception 'conversation not found'; end if;\n  if v_actor not in (v_buyer, v_seller) then raise exception 'not a participant'; end if;\n\n  v_to := case when v_actor = v_buyer then v_seller else v_buyer end;\n  if is_blocked(v_actor, v_to) then raise exception 'messaging unavailable'; end if;\n\n  if p_kind in ('trade', 'trade_plus_cash') then\n    foreach v_item in array p_offered_listing_ids loop\n      if not exists (\n        select 1 from listings where id = v_item and seller_id = v_actor and status = 'available'\n      ) then\n        raise exception 'offered item % is not your own available listing', v_item;\n      end if;\n    end loop;\n  end if;\n\n  insert into offers (listing_id, conversation_id, from_user_id, to_user_id, kind, cash_amount, expires_at)\n  values (v_listing_id, p_conversation_id, v_actor, v_to, p_kind, p_cash_amount, now() + interval '48 hours')\n  returning id into v_offer_id;\n\n  foreach v_item in array p_offered_listing_ids loop\n    insert into offer_items (offer_id, offered_listing_id) values (v_offer_id, v_item);\n  end loop;\n\n  insert into messages (conversation_id, from_user_id, to_user_id, body, type, offer_id)\n  values (p_conversation_id, v_actor, v_to, 'Sent an offer', 'offer', v_offer_id);\n\n  update conversations set last_message = 'Sent an offer', updated_at = now() where id = p_conversation_id;\n  return v_offer_id;\nend;\n$function$\n"
+    },
+    {
+      "name": "respond_to_offer",
+      "definition": "CREATE OR REPLACE FUNCTION public.respond_to_offer(p_offer_id text, p_action text)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare\n  v_actor text := auth.uid()::text;\n  v_offer offers%rowtype;\n  v_txn_id text;\nbegin\n  if p_action not in ('accept','decline','withdraw') then raise exception 'invalid action'; end if;\n\n  select * into v_offer from offers where id = p_offer_id for update;\n  if v_offer.id is null then raise exception 'offer not found'; end if;\n  if v_offer.status <> 'pending' then raise exception 'offer is no longer pending'; end if;\n\n  if p_action = 'accept' then\n    if v_actor <> v_offer.to_user_id then raise exception 'only the offer recipient can accept it'; end if;\n\n    perform 1 from listings where id = v_offer.listing_id for update;\n\n    update offers set status = 'declined'\n    where listing_id = v_offer.listing_id and status = 'pending' and id <> v_offer.id;\n\n    insert into transactions (listing_id, offer_id, buyer_id, seller_id, kind, agreed_price)\n    values (\n      v_offer.listing_id, v_offer.id, v_offer.from_user_id, v_offer.to_user_id,\n      case when v_offer.kind = 'cash' then 'sale' else 'trade' end,\n      v_offer.cash_amount\n    ) returning id into v_txn_id;\n\n    insert into transaction_listings (transaction_id, listing_id, role)\n    values (v_txn_id, v_offer.listing_id, 'target');\n\n    insert into transaction_listings (transaction_id, listing_id, role)\n    select v_txn_id, offered_listing_id, 'offered' from offer_items where offer_id = v_offer.id;\n\n    update listings set status = 'reserved'\n    where id in (\n      select listing_id from transaction_listings where transaction_id = v_txn_id\n    );\n\n    update offers set status = 'accepted' where id = v_offer.id;\n\n    insert into messages (conversation_id, from_user_id, to_user_id, body, type)\n    values (v_offer.conversation_id, v_actor, v_offer.from_user_id, 'Offer accepted', 'system');\n\n  elsif p_action = 'decline' then\n    if v_actor <> v_offer.to_user_id then raise exception 'only the offer recipient can decline it'; end if;\n    update offers set status = 'declined' where id = v_offer.id;\n    insert into messages (conversation_id, from_user_id, to_user_id, body, type)\n    values (v_offer.conversation_id, v_actor, v_offer.from_user_id, 'Offer declined', 'system');\n\n  else -- withdraw\n    if v_actor <> v_offer.from_user_id then raise exception 'only the offerer can withdraw it'; end if;\n    update offers set status = 'withdrawn' where id = v_offer.id;\n    insert into messages (conversation_id, from_user_id, to_user_id, body, type)\n    values (v_offer.conversation_id, v_actor, v_offer.to_user_id, 'Offer withdrawn', 'system');\n  end if;\nend;\n$function$\n"
+    },
+    {
+      "name": "ensure_profile",
+      "definition": "CREATE OR REPLACE FUNCTION public.ensure_profile(p_display_name text DEFAULT NULL::text)\n RETURNS profiles\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO 'public'\nAS $function$\ndeclare\n  v_uid text := auth.uid()::text;\n  v_univ_id uuid;\n  v_campus_id uuid;\n  v_profile profiles;\nbegin\n  if v_uid is null then\n    raise exception 'not authenticated';\n  end if;\n\n  select * into v_profile from profiles where id = v_uid;\n  if found then\n    return v_profile;\n  end if;\n\n  select id into v_univ_id from universities where slug = 'fenwick';\n  select id into v_campus_id from campuses where slug = 'main' and university_id = v_univ_id;\n\n  insert into profiles (id, university_id, home_campus_id, display_name)\n  values (v_uid, v_univ_id, v_campus_id, coalesce(p_display_name, 'Student ' || substr(v_uid, 1, 6)))\n  returning * into v_profile;\n\n  return v_profile;\nend;\n$function$\n"
+    }
+  ]
+}

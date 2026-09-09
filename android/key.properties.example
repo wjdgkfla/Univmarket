@@ -1,0 +1,6 @@
+# Copy to android/key.properties and fill in private signing values.
+# Relative storeFile paths resolve from the android directory.
+storeFile=
+storePassword=
+keyAlias=upload
+keyPassword=
