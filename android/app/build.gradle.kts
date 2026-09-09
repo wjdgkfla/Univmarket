@@ -14,7 +14,7 @@ if (releasePropertiesFile.exists()) {
 
 android {
     namespace = "com.univmarket.univmarket_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

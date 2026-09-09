@@ -104,3 +104,8 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Reproduced delayed session and PKCE writes surviving sign-out in two regression tests.
 - Serialized secure-storage reads, writes, migration and deletion. The queue recovers after errors so a failed operation cannot prevent later deletion.
 - Both regressions now pass; all 45 tests pass and analyzer is clean. Native plugin build run 34326740947 is still running at the preceding commit; this Dart ordering fix is not yet included in that run.
+
+## Android secure-storage compatibility
+- Run 34326740947: iOS succeeded, Android failed AAR metadata validation because flutter_secure_storage 11 requires compile SDK 37.
+- Updated compile SDK to 37, AGP to 9.1.1 and Gradle to 9.3.1 with the official distribution checksum. This matches https://developer.android.com/build/releases/agp-9-1-0-release-notes .
+- Rebuild is required to prove this compatibility fix; do not use the earlier green Android result as evidence for the secure-storage dependency.
