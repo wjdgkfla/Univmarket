@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,12 +18,59 @@ class BrokenWriteStorage extends FlutterSecureStorage {
   }) async {}
 }
 
+class DelayedWriteStorage extends FlutterSecureStorage {
+  final started = Completer<void>();
+  final release = Completer<void>();
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    AppleOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    AppleOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async {
+    started.complete();
+    await release.future;
+    await super.write(key: key, value: value);
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() {
     FlutterSecureStorage.setMockInitialValues({});
     SharedPreferences.setMockInitialValues({});
   });
+  for (final verifier in [false, true]) {
+    test(
+      'sign-out removes an in-flight ${verifier ? 'verifier' : 'session'} write',
+      () async {
+        final storage = DelayedWriteStorage();
+        final store = SecureAuthStore(sessionKey: 'project', storage: storage);
+        final write = verifier
+            ? SecurePkceStorage(store).setItem(
+                key: SecureAuthStore.legacyVerifierKey,
+                value: 'pending',
+              )
+            : store.persistSession('pending');
+        await storage.started.future;
+        final signOut = store.removePersistedSession();
+        await Future<void>.delayed(Duration.zero);
+        storage.release.complete();
+        await Future.wait([write, signOut]);
+        expect(await store.accessToken(), isNull);
+        expect(
+          await SecurePkceStorage(
+            store,
+          ).getItem(key: SecureAuthStore.legacyVerifierKey),
+          isNull,
+        );
+      },
+    );
+  }
   test('migrates session and verifier then removes plaintext copies', () async {
     SharedPreferences.setMockInitialValues({
       'sb-project-auth-token': 'session',

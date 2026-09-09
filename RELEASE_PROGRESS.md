@@ -99,3 +99,8 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Replaced ordinary preference persistence with native secure session and PKCE storage on iOS/Android; kept browser storage for web.
 - Added verified migration of legacy values, scoped keys, Keychain entitlements and Android backup exclusion.
 - All 43 local tests pass and analyzer is clean. Physical-device persistence verification remains required; updated native CI is pending.
+
+## Secure-storage sign-out ordering
+- Reproduced delayed session and PKCE writes surviving sign-out in two regression tests.
+- Serialized secure-storage reads, writes, migration and deletion. The queue recovers after errors so a failed operation cannot prevent later deletion.
+- Both regressions now pass; all 45 tests pass and analyzer is clean. Native plugin build run 34326740947 is still running at the preceding commit; this Dart ordering fix is not yet included in that run.
