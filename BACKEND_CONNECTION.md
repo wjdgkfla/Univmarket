@@ -3,7 +3,7 @@
 Project: Application for market for univs (`amzvnsphtaxkjzmsjsie`).
 Dashboard: https://supabase.com/dashboard/project/amzvnsphtaxkjzmsjsie
 
-`univmarket_app/config/supabase.dev.json` contains the verified project URL and publishable client key. It contains no service-role secret and applies to the shared Flutter iOS, Android, and web codebase.
+`config/supabase.dev.json` contains the verified project URL and publishable client key. It contains no service-role secret and applies to the shared Flutter iOS, Android, and web codebase.
 
 ## Verified September 9, 2026
 
@@ -26,7 +26,7 @@ RLS is enabled on the inspected marketplace tables. Before public launch, audit 
 
 ## Commands
 
-Run from univmarket_app:
+Run from the repository root:
 
 ```sh
 node scripts/check-backend.mjs
