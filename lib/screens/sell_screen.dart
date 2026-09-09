@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../data/models.dart';
+import '../data/listing_photo.dart';
 import '../data/repository.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -68,14 +69,8 @@ class _SellScreenState extends State<SellScreen> {
       );
       if (file == null) return;
       final bytes = await file.readAsBytes();
-      if (bytes.length > 1500000) {
-        throw ArgumentError(
-          'Choose a photo smaller than 1.5 MB for this local preview.',
-        );
-      }
-      if (mounted) {
-        setState(() => photo = 'data:image/jpeg;base64,${base64Encode(bytes)}');
-      }
+      final selected = ListingPhoto.fromBytes(bytes);
+      if (mounted) setState(() => photo = selected.dataUri);
     } catch (e) {
       error(e);
     }
@@ -98,7 +93,13 @@ class _SellScreenState extends State<SellScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Listing saved on this device.')),
+        SnackBar(
+          content: Text(
+            context.read<Repository>().isDemo
+                ? 'Listing saved on this device.'
+                : 'Listing saved to your marketplace.',
+          ),
+        ),
       );
       context.go('/');
     } catch (e) {
@@ -159,6 +160,16 @@ class _SellScreenState extends State<SellScreen> {
                             base64Decode(photo!.split(',').last),
                             height: 180,
                             fit: BoxFit.cover,
+                          )
+                        : photo!.startsWith('https://')
+                        ? Image.network(
+                            photo!,
+                            height: 180,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const SizedBox(
+                              height: 180,
+                              child: Center(child: Text('Photo unavailable')),
+                            ),
                           )
                         : Image.asset(photo!, height: 180, fit: BoxFit.cover),
                   ),

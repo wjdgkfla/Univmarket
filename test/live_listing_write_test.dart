@@ -8,6 +8,7 @@ import 'package:univmarket_app/data/models.dart';
 
 Future<({Repository repo, List<http.Request> requests})> fixture({
   bool rejectUpdates = false,
+  bool rejectUploads = false,
   String sellerId = 'student',
 }) async {
   final requests = <http.Request>[];
@@ -17,6 +18,18 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
     authOptions: const AuthClientOptions(autoRefreshToken: false),
     httpClient: MockClient((request) async {
       requests.add(request);
+      if (rejectUploads && request.url.path.startsWith('/storage/v1/object/')) {
+        return http.Response(
+          jsonEncode({
+            'statusCode': '403',
+            'error': 'Unauthorized',
+            'message': 'Upload denied',
+          }),
+          403,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        );
+      }
       if (rejectUpdates && request.method == 'PATCH') {
         return http.Response(
           jsonEncode({
@@ -32,7 +45,13 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
       }
       Object result = [];
       final path = request.url.path;
-      if (path == '/auth/v1/token') {
+      if (path.startsWith('/storage/v1/object/sign/')) {
+        result = {
+          'signedURL': '/object/sign/listing-images/photo.jpg?token=test',
+        };
+      } else if (path.startsWith('/storage/v1/object/')) {
+        result = {'Key': path};
+      } else if (path == '/auth/v1/token') {
         result = {
           'access_token': [
             base64Url.encode(
@@ -148,6 +167,43 @@ Future<void> save(
   imageSource: photo,
 );
 void main() {
+  test(
+    'upload rejection stops the listing write and preserves cached listings',
+    () async {
+      final f = await fixture(rejectUploads: true);
+      await expectLater(
+        save(f.repo, photo: 'data:image/png;base64,iVBORw0KGgoA'),
+        throwsA(isA<StorageException>()),
+      );
+      expect(f.requests.length, 1);
+      expect(f.repo.getListing('new-listing'), isNull);
+      expect(f.repo.getListing('listing-b')?.title, 'Course book');
+    },
+  );
+  test(
+    'uploads a new photo before saving its private path on the listing',
+    () async {
+      final f = await fixture();
+      await save(f.repo, photo: 'data:image/png;base64,iVBORw0KGgoA');
+      final upload = f.requests.first;
+      expect(
+        upload.url.path,
+        matches(
+          r'^/storage/v1/object/listing-images/school-b/student/[a-f0-9]{32}\.png$',
+        ),
+      );
+      final write = f.requests.singleWhere(
+        (r) => r.url.path.endsWith('/listings'),
+      );
+      final body = jsonDecode(write.body);
+      expect(body['cover_image_url'], startsWith('school-b/student/'));
+      expect(body['image_urls'], [body['cover_image_url']]);
+      expect(
+        f.repo.getListing('new-listing')?.imageSource,
+        startsWith('https://test.invalid/storage/v1/object/sign/'),
+      );
+    },
+  );
   test('rejects invalid pickup zone and price before writing', () async {
     final f = await fixture();
     await expectLater(save(f.repo, zone: 'Other campus'), throwsArgumentError);
@@ -206,4 +262,3 @@ void main() {
     expect(f.requests, isEmpty);
   });
 }
-

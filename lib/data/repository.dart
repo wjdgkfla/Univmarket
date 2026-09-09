@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
+import 'listing_photo.dart';
+import 'listing_photo_storage.dart';
 import 'supabase_client.dart';
 
 const _categoryIcon = {
@@ -268,24 +270,35 @@ class Repository extends ChangeNotifier {
         .eq('moderation_state', 'visible')
         .isFilter('deleted_at', null)
         .order('created_at', ascending: false);
-    _listings = [for (final r in rows) _listingFromRow(r)];
+    _listings = await Future.wait([for (final r in rows) _listingFromRow(r)]);
   }
 
-  Listing _listingFromRow(Map<String, dynamic> r) => Listing(
-    id: r['id'] as String,
-    icon: _iconForCategory(r['category'] as String),
-    title: r['title'] as String,
-    price: (r['price'] as num).round(),
-    condition: _conditionFromDb(r['condition'] as String),
-    zone: _zoneNames[r['pickup_zone_id']] ?? '',
-    tag: r['category'] as String,
-    trades: r['accepts_trades'] as bool? ?? false,
-    description: (r['description'] as String?) ?? '',
-    sellerId: r['seller_id'] as String,
-    universityId: r['university_id'] as String,
-    status: r['status'] as String? ?? 'available',
-    imageSource: r['cover_image_url'] as String?,
-  );
+  Future<Listing> _listingFromRow(Map<String, dynamic> r) async {
+    var image = r['cover_image_url'] as String?;
+    if (image != null && !image.startsWith('https://')) {
+      try {
+        image = await ListingPhotoStorage(_db).resolve(image);
+      } catch (_) {
+        // A photo outage must not turn a successful listing write into failure.
+        image = null;
+      }
+    }
+    return Listing(
+      id: r['id'] as String,
+      icon: _iconForCategory(r['category'] as String),
+      title: r['title'] as String,
+      price: (r['price'] as num).round(),
+      condition: _conditionFromDb(r['condition'] as String),
+      zone: _zoneNames[r['pickup_zone_id']] ?? '',
+      tag: r['category'] as String,
+      trades: r['accepts_trades'] as bool? ?? false,
+      description: (r['description'] as String?) ?? '',
+      sellerId: r['seller_id'] as String,
+      universityId: r['university_id'] as String,
+      status: r['status'] as String? ?? 'available',
+      imageSource: image,
+    );
+  }
 
   Future<void> _refreshFavorites() async {
     final rows = await _db
@@ -507,12 +520,16 @@ class Repository extends ChangeNotifier {
             existing.status != 'available')) {
       throw StateError('Only your available listings can be edited.');
     }
+    String? uploadedPath;
     if (imageSource != null && imageSource != existing?.imageSource) {
-      throw UnsupportedError(
-        'Photo uploads require a configured live storage adapter.',
-      );
+      final photo = ListingPhoto.fromDataUri(imageSource);
+      uploadedPath = await ListingPhotoStorage(
+        _db,
+      ).upload(universityId: _universityId!, photo: photo);
     }
     final fields = <String, dynamic>{
+      'cover_image_url': ?uploadedPath,
+      if (uploadedPath != null) 'image_urls': [uploadedPath],
       'pickup_zone_id': zones.single.key,
       'title': cleanTitle,
       'description': cleanDescription,
@@ -545,7 +562,7 @@ class Repository extends ChangeNotifier {
           .select()
           .single();
     }
-    final saved = _listingFromRow(row);
+    final saved = await _listingFromRow(row);
     final index = _listings.indexWhere((listing) => listing.id == saved.id);
     if (index < 0) {
       _listings.insert(0, saved);

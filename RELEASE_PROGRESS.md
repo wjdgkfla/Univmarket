@@ -72,3 +72,11 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Cache updates use the returned server row, avoiding a second feed request after a successful write. A zero-row response fails without changing cached content.
 - Full suite: 31 tests passed, including mocked SDK create/edit, invalid input, outsider and rejected-write cases. These prove client behavior, not hosted authorization: existing database policies still require hardening before release.
 - Remaining related work: storage uploads, sell-screen remote-photo preview and live success wording, full listing management, server authorization tests, actual multiuser/device verification.
+
+## Listing photo adapter
+- Added private Supabase upload and signed URL resolution, scoped random object names, byte-size/format checks, and truthful MIME detection for picked PNG/JPEG files.
+- Sell screen previews existing HTTPS images and distinguishes live saves from local demo saves.
+- Upload denial prevents listing persistence. Signed URL failures use image fallback after successful writes.
+- Storage is not provisioned on the hosted project. STORAGE_SETUP.md records the required policies, actual-device tests, URL refresh and orphan cleanup still needed before release.
+- Full suite passed 34 tests, followed by a seventh passing listing-write test for upload denial (35 total tests now). Final analyzer/build results are recorded separately when complete.
+- Final verification: all 35 tests pass; analyzer clean; live web release build succeeded.
