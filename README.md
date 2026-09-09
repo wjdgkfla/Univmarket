@@ -74,7 +74,7 @@ The offline suite covers local persistence, campus isolation, listing validation
 
 UnivMarket uses a dedicated Supabase project. Its publishable client configuration is in [`supabase.dev.json`](config/supabase.dev.json).
 
-The standard app starts in demo mode. The retained live adapter still uses anonymous sign-in and the Fenwick university seed. Verified university membership, live photo uploads, remaining write flows, and authorization testing must be completed before public release.
+The standard app starts in demo mode. Live mode now requires an email account and supports password recovery. The hosted profile function still assigns the Fenwick seed; verified university membership is not yet enforced. Verified university membership, live photo uploads, remaining write flows, and authorization testing must be completed before public release.
 
 Read the [backend connection notes](BACKEND_CONNECTION.md) before enabling live mode. Never place service-role credentials or private signing keys in client configuration.
 
@@ -97,6 +97,7 @@ test/                   Offline repository and widget tests
 | --- | --- |
 | [App guide](APP_GUIDE.md) | Run the app and explore demo flows |
 | [Implementation status](IMPLEMENTATION_STATUS.md) | Current delivery and limitations |
+| [Authentication setup](AUTH_SETUP.md) | Email delivery, callback configuration, and recovery test requirements |
 | [Backend connection](BACKEND_CONNECTION.md) | Supabase configuration and integration findings |
 | [Verification record](VERIFICATION.md) | Checks performed and their scope |
 | [Deployment plan](DEPLOYMENT_PLAN.md) | Steps from local preview to native pilot release |

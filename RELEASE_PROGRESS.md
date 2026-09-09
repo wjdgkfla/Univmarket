@@ -45,3 +45,23 @@ The live repository now derives university and campus from the server profile. I
 The repository accepts an injected Supabase client and exposes an initialization Future. SDK-level tests use a mock HTTP transport, not the hosted database: they verify actual generated request parameters, profile-based school naming, listing metadata, and zero backend requests for signed-out access. 18 total tests passed and analysis reports no issues.
 
 These client filters are not server authorization. The hosted profile RPC still assigns Fenwick and its privileges remain unchanged while explicit migration approval is pending. Native deployment and the full release goal remain incomplete.
+
+## Password recovery implementation
+
+Added reset-email request and new-password forms, confirmation/minimum-length validation, neutral email response, generic retryable errors, and explicit sign-out after recovery. Android/iOS callback schemes are registered. LiveAuthGate owns initial/resumed callback parsing, validates sessions through Supabase, and prevents marketplace bootstrap during recovery. Supabase automatic URI detection is disabled to prevent consuming the same callback twice.
+
+22 tests pass, including cold-start recovery with the real SDK plus isolated HTTP responses, expired-link handling, and recovery form validation/retry. The callback test initially stalled during SDK isolate disposal under fake time; SDK construction and disposal now run outside the widget test's simulated clock. Flutter analysis is clean. The live-mode web build succeeded. Native XML parses successfully.
+
+AUTH_SETUP.md records required hosted redirect allowlisting and email configuration. No hosted settings were changed and no recovery emails were sent. Real-device email/deep-link verification, secure native token persistence, account deletion, verified university membership, the blocked privilege migration, and the remaining marketplace/release gates are still outstanding.
+
+## Recovery link review follow-up
+- Fixed startup subscription ordering so account links arriving during initial lookup are retained.
+- Failed callback exchanges are retryable; only successful callbacks are deduplicated.
+- Both regression tests were observed failing against the previous behavior and passing after fixes. Full suite: 24 tests passed.
+- Still open: web PKCE callback URL cleanup and recovery restoration after reload; actual PKCE/device integration testing. These are release gates, not covered by the implicit callback tests.
+- Hosted privilege migration remains unapplied pending explicit approval of its reviewed scope.
+
+## Browser PKCE recovery follow-up
+- Consumed callback parameters are removed through Flutter browser history replacement. A non-secret recover=1 UI marker retains the password form when an authenticated session is restored; it grants no backend privileges.
+- SDK PKCE regression verifies recovery request/verifier creation, one code exchange, verifier removal, URL cleanup and gate remount without replay. Network is mocked; no real emails were sent.
+- Full Flutter suite: 26 passing tests. Live web release build succeeded. Actual browser reload with persisted storage and physical-device callbacks remain unverified.

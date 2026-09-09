@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import '../auth/auth_service.dart';
+import '../auth/recovery_service.dart';
+import 'password_recovery_screen.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key, required this.auth});
+  const AuthScreen({super.key, required this.auth, this.recovery});
   final AuthService auth;
+  final RecoveryService? recovery;
   @override
   State<AuthScreen> createState() => _AuthScreenState();
 }
@@ -130,6 +133,19 @@ class _AuthScreenState extends State<AuthScreen> {
                           liveRegion: true,
                           child: Text(_message!),
                         ),
+                      ),
+                    if (!_register && widget.recovery != null)
+                      TextButton(
+                        onPressed: _busy
+                            ? null
+                            : () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => PasswordRecoveryScreen(
+                                    service: widget.recovery!,
+                                  ),
+                                ),
+                              ),
+                        child: const Text('Forgot password?'),
                       ),
                     FilledButton(
                       onPressed: _busy ? null : _submit,
