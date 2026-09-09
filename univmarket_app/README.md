@@ -43,4 +43,4 @@ Live mode is explicitly selected with `--dart-define=LIVE_BACKEND=true`, `--dart
 
 The retained adapter is a development reference: it still has anonymous bootstrap and single-university assumptions and requires existing server RPCs. It is **not suitable for public launch**, and adding credentials does not make it multi-university ready. Editing/photo upload/new offer creation deliberately report unsupported in that adapter rather than pretending to work. Demo mode never initializes Supabase, and a failed live connection never silently opens demo mode.
 
-Read [the deployment plan](../docs/DEPLOYMENT_PLAN.md) before enabling shared accounts or distributing builds publicly.
+Read [the deployment plan](../DEPLOYMENT_PLAN.md) before enabling shared accounts or distributing builds publicly.

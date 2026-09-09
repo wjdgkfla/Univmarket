@@ -56,7 +56,7 @@ flutter devices
 flutter run -d DEVICE_ID
 ```
 
-Replace `DEVICE_ID` with the device identifier. See the [deployment plan](docs/DEPLOYMENT_PLAN.md) for signing, physical-device testing, and store-release requirements.
+Replace `DEVICE_ID` with the device identifier. See the [deployment plan](DEPLOYMENT_PLAN.md) for signing, physical-device testing, and store-release requirements.
 
 ## Development checks
 
@@ -76,12 +76,12 @@ UnivMarket uses a dedicated Supabase project. Its publishable client configurati
 
 The standard app starts in demo mode. The retained live adapter still uses anonymous sign-in and the Fenwick university seed. Verified university membership, live photo uploads, remaining write flows, and authorization testing must be completed before public release.
 
-Read the [backend connection notes](docs/BACKEND_CONNECTION.md) before enabling live mode. Never place service-role credentials or private signing keys in client configuration.
+Read the [backend connection notes](BACKEND_CONNECTION.md) before enabling live mode. Never place service-role credentials or private signing keys in client configuration.
 
 ## Repository layout
 
 ```text
-docs/                   Backend findings, verification, and release planning
+*.md                    Project documents shown at the repository root
 univmarket_app/
   android/              Android platform project
   ios/                  iOS platform project
@@ -97,9 +97,9 @@ univmarket_app/
 | Guide | Purpose |
 | --- | --- |
 | [App guide](univmarket_app/README.md) | Run the app and explore demo flows |
-| [Implementation status](docs/IMPLEMENTATION_STATUS.md) | Current delivery and limitations |
-| [Backend connection](docs/BACKEND_CONNECTION.md) | Supabase configuration and integration findings |
-| [Verification record](docs/VERIFICATION.md) | Checks performed and their scope |
-| [Deployment plan](docs/DEPLOYMENT_PLAN.md) | Steps from local preview to native pilot release |
-| [Original product plan](docs/MOBILE_APP_MASTER_PLAN.md) | Earlier product direction; its Expo assumption is superseded by Flutter |
+| [Implementation status](IMPLEMENTATION_STATUS.md) | Current delivery and limitations |
+| [Backend connection](BACKEND_CONNECTION.md) | Supabase configuration and integration findings |
+| [Verification record](VERIFICATION.md) | Checks performed and their scope |
+| [Deployment plan](DEPLOYMENT_PLAN.md) | Steps from local preview to native pilot release |
+| [Original product plan](MOBILE_APP_MASTER_PLAN.md) | Earlier product direction; its Expo assumption is superseded by Flutter |
 | [Image sources](univmarket_app/assets/IMAGE_SOURCES.md) | Attribution for bundled sample photos |
