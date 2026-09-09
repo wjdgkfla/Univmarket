@@ -13,6 +13,7 @@ import 'screens/sell_screen.dart';
 import 'theme/tokens.dart';
 
 import 'widgets/pill_nav.dart';
+import 'widgets/marketplace_refresh.dart';
 
 /// Built fresh per [UnivMarketApp] instance rather than as a bare top-level
 /// singleton — go_router still gets the single stable instance production
@@ -110,7 +111,10 @@ class UnivMarketApp extends StatelessWidget {
                     ),
                     child: ColoredBox(
                       color: bg,
-                      child: child ?? const SizedBox(),
+                      child: MarketplaceRefresh(
+                        repository: repository,
+                        child: child ?? const SizedBox(),
+                      ),
                     ),
                   ),
                 ),

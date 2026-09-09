@@ -25,3 +25,7 @@ SHA-256:
 - iOS archive: `B8D3BA9773BE4D1996842DC155247FA1D12FA25F24F4176B104E1EFB444B9B55`
 
 This verifies native compilation and packaging. No physical-device execution, Android release signing, iOS signing, TestFlight upload, or Play submission has been performed. The local Windows machine still lacks an Android SDK and connected phone.
+
+## Secure-storage rebuild verified
+
+Run https://github.com/wjdgkfla/Univmarket/actions/runs/34327269153 succeeded at source commit `36f6a16d25d0808eb148f81477c4a3e478717473`: analysis, 45 tests, Android debug APK and unsigned iOS release app. This verifies the SDK 37 / AGP 9.1.1 / Gradle 9.3.1 fix and secure-storage native compilation. Downloaded artifacts are under `build/native-evidence/36f6a16/android` and `build/native-evidence/36f6a16/ios`. Later chat/catalog-refresh changes are not included in these artifacts.

@@ -346,6 +346,13 @@ class Repository extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshMarketplace() async {
+    if (isDemo) return;
+    _requireConfirmedAccount();
+    await _refreshListings();
+    notifyListeners();
+  }
+
   Future<void> _refreshListings() async {
     final rows = await _db
         .from('listings')

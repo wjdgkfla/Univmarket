@@ -115,3 +115,9 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Read/stream failures display a retry banner; initial loading no longer renders a blank screen. Disposal stops queued reloads and avoids notifications after leaving the screen.
 - All 49 tests pass and analyzer is clean, including controller concurrency/error/disposal checks and a widget test that retries a failed chat load.
 - Full hosted two-device messaging, reconnect and moderation/access-policy testing remain required. Native run 34327269153 covers the earlier secure-storage/build-tool changes, not this unpushed chat change.
+
+## Catalog and signed photo URL refresh
+- Refreshes the live catalog on foreground resume and every 45 minutes while active, before the one-hour signed photo expiry. Background periodic work is paused.
+- Failed catalog refreshes retain previous results and show a Retry banner. The local demo does not perform these requests.
+- All 52 tests pass with clean analysis, including lifecycle/timer/retry widget tests and an SDK test proving a fresh signed URL is requested.
+- Native secure-storage build run 34327269153 succeeded for both platforms at commit 36f6a16; artifacts downloaded and documented in NATIVE_BUILDS.md. This native result predates the current chat/catalog changes.

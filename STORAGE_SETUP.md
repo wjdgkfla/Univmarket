@@ -15,3 +15,5 @@ Required provisioning and verification:
 - Validate actual image decoding and review metadata stripping before launch. Current format checks identify JPEG/PNG signatures and size; they do not guarantee image integrity.
 
 Mocked SDK tests verify upload-before-write, randomized scoped paths, stored paths, signed URL mapping, and stopping writes on upload denial. Actual hosted storage policy tests and physical-device photo picking remain required.
+
+Catalog refresh is now implemented on foreground resume and every 45 active minutes. Lifecycle and SDK tests verify refresh and re-signing, but real-device background/resume and hosted photo permissions still require verification.

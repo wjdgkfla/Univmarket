@@ -11,9 +11,11 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
   bool rejectUploads = false,
   bool withConversation = false,
   bool rejectOffers = false,
+  bool privatePhoto = false,
   String sellerId = 'student',
 }) async {
   final requests = <http.Request>[];
+  var signedUrls = 0;
   final client = SupabaseClient(
     'https://test.invalid',
     'public-test-key',
@@ -68,7 +70,8 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
         ];
       } else if (path.startsWith('/storage/v1/object/sign/')) {
         result = {
-          'signedURL': '/object/sign/listing-images/photo.jpg?token=test',
+          'signedURL':
+              '/object/sign/listing-images/photo.jpg?token=${++signedUrls}',
         };
       } else if (path.startsWith('/storage/v1/object/')) {
         result = {'Key': path};
@@ -129,7 +132,9 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
             'condition': 'good',
             'pickup_zone_id': 'zone-b',
             'status': 'available',
-            'cover_image_url': 'https://test.invalid/book.jpg',
+            'cover_image_url': privatePhoto
+                ? 'school-b/student/book.jpg'
+                : 'https://test.invalid/book.jpg',
           },
         ];
       }
@@ -188,6 +193,22 @@ Future<void> save(
   imageSource: photo,
 );
 void main() {
+  test(
+    'marketplace refresh obtains a new signed URL for private photos',
+    () async {
+      final f = await fixture(privatePhoto: true);
+      final before = f.repo.getListing('listing-b')!.imageSource;
+      await f.repo.refreshMarketplace();
+      final after = f.repo.getListing('listing-b')!.imageSource;
+      expect(before, isNot(after));
+      expect(
+        f.requests
+            .where((r) => r.url.path.startsWith('/storage/v1/object/sign/'))
+            .length,
+        1,
+      );
+    },
+  );
   test(
     'mark sold rejects another owner and rejected updates preserve availability',
     () async {
