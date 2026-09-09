@@ -453,9 +453,8 @@ class Repository extends ChangeNotifier {
     await refreshConversation(conversationId);
   }
 
-  /// Sell screen doesn't collect real form input yet (fields are static
-  /// display text, a known pre-existing gap) — this posts whatever's
-  /// currently shown on screen as the listing.
+  /// Persist editable fields and cache only the row confirmed by the server.
+  /// Backend RLS must independently enforce ownership and campus membership.
   Future<void> createListing({
     required String title,
     required int price,
@@ -467,30 +466,92 @@ class Repository extends ChangeNotifier {
     String? imageSource,
     String? editingId,
   }) async {
-    if (editingId != null || imageSource != null) {
-      throw UnsupportedError(
-        'Photo uploads and editing require a configured live adapter.',
+    final user = _db.auth.currentUser;
+    if (!ready ||
+        bootstrapError != null ||
+        user == null ||
+        user.id != _me.id ||
+        user.isAnonymous ||
+        user.emailConfirmedAt == null) {
+      throw StateError(
+        'Sign in with a confirmed university account before posting.',
       );
     }
-    final zoneId = _zoneNames.entries
-        .firstWhere(
-          (e) => e.value == pickupZoneName,
-          orElse: () => _zoneNames.entries.first,
-        )
-        .key;
-    await _db.from('listings').insert({
-      'seller_id': _me.id,
-      'university_id': _universityId,
-      'campus_id': _campusId,
-      'pickup_zone_id': zoneId,
-      'title': title,
-      'description': description,
+    final cleanTitle = title.trim();
+    final cleanDescription = description.trim();
+    if (cleanTitle.length < 3 || cleanTitle.length > 100) {
+      throw ArgumentError('Use a title between 3 and 100 characters.');
+    }
+    if (cleanDescription.length < 10 || cleanDescription.length > 2000) {
+      throw ArgumentError('Use a description between 10 and 2000 characters.');
+    }
+    if (price < 0 || price > 100000) {
+      throw ArgumentError('Enter a whole-dollar price from 0 to 100000.');
+    }
+    if (!categories.contains(category)) {
+      throw ArgumentError('Choose a valid category.');
+    }
+    final zones = _zoneNames.entries
+        .where((e) => e.value == pickupZoneName)
+        .toList();
+    if (zones.length != 1) {
+      throw ArgumentError(
+        'Choose an available pickup location on your campus.',
+      );
+    }
+    final existing = editingId == null ? null : getListing(editingId);
+    if (editingId != null &&
+        (existing == null ||
+            existing.sellerId != _me.id ||
+            existing.universityId != _universityId ||
+            existing.status != 'available')) {
+      throw StateError('Only your available listings can be edited.');
+    }
+    if (imageSource != null && imageSource != existing?.imageSource) {
+      throw UnsupportedError(
+        'Photo uploads require a configured live storage adapter.',
+      );
+    }
+    final fields = <String, dynamic>{
+      'pickup_zone_id': zones.single.key,
+      'title': cleanTitle,
+      'description': cleanDescription,
       'price': price,
       'category': category,
       'condition': _conditionToDb(condition),
       'accepts_trades': acceptsTrades,
-    });
-    await _refreshListings();
+    };
+    final Map<String, dynamic> row;
+    if (editingId == null) {
+      row = await _db
+          .from('listings')
+          .insert({
+            ...fields,
+            'seller_id': _me.id,
+            'university_id': _universityId,
+            'campus_id': _campusId,
+          })
+          .select()
+          .single();
+    } else {
+      row = await _db
+          .from('listings')
+          .update(fields)
+          .eq('id', editingId)
+          .eq('seller_id', _me.id)
+          .eq('university_id', _universityId!)
+          .eq('status', 'available')
+          .isFilter('deleted_at', null)
+          .select()
+          .single();
+    }
+    final saved = _listingFromRow(row);
+    final index = _listings.indexWhere((listing) => listing.id == saved.id);
+    if (index < 0) {
+      _listings.insert(0, saved);
+    } else {
+      _listings[index] = saved;
+    }
     notifyListeners();
   }
 }

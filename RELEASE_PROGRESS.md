@@ -65,3 +65,10 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Consumed callback parameters are removed through Flutter browser history replacement. A non-secret recover=1 UI marker retains the password form when an authenticated session is restored; it grants no backend privileges.
 - SDK PKCE regression verifies recovery request/verifier creation, one code exchange, verifier removal, URL cleanup and gate remount without replay. Network is mocked; no real emails were sent.
 - Full Flutter suite: 26 passing tests. Live web release build succeeded. Actual browser reload with persisted storage and physical-device callbacks remain unverified.
+
+## Live listing writes
+- Implemented owner editing through existing listings endpoint; edits filter listing id, seller, university, available status and nondeleted state, and change only editable fields.
+- Creation and editing trim input, validate lengths/price/category, reject missing or ambiguous campus pickup zones, and require the current confirmed account. Existing remote photos are preserved; new uploads remain unfinished.
+- Cache updates use the returned server row, avoiding a second feed request after a successful write. A zero-row response fails without changing cached content.
+- Full suite: 31 tests passed, including mocked SDK create/edit, invalid input, outsider and rejected-write cases. These prove client behavior, not hosted authorization: existing database policies still require hardening before release.
+- Remaining related work: storage uploads, sell-screen remote-photo preview and live success wording, full listing management, server authorization tests, actual multiuser/device verification.
