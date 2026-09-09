@@ -80,3 +80,9 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Storage is not provisioned on the hosted project. STORAGE_SETUP.md records the required policies, actual-device tests, URL refresh and orphan cleanup still needed before release.
 - Full suite passed 34 tests, followed by a seventh passing listing-write test for upload denial (35 total tests now). Final analyzer/build results are recorded separately when complete.
 - Final verification: all 35 tests pass; analyzer clean; live web release build succeeded.
+
+## Native CI milestone
+- Pushed deployment-readiness branch to GitHub and installed pinned Android/iOS build verification.
+- Run 34325217597 succeeded at source commit 4a4613a: analyzer and 35 tests, Android debug APK, unsigned iOS release app.
+- Downloaded and inspected both artifacts; SHA-256 and run link are in NATIVE_BUILDS.md.
+- Native compilation is now verified. Device behavior, production signing, backend/storage hardening and remaining marketplace flows are still incomplete; deployment goal remains active.
