@@ -4,15 +4,15 @@ A Flutter iOS/Android campus marketplace. This checkout includes a working **loc
 
 ## Run the preview
 
-From this directory, using the Flutter SDK installed on this PC:
+From this directory, with Flutter on PATH:
 
-```powershell
-& C:\src\flutter\bin\flutter.bat pub get
-& C:\src\flutter\bin\flutter.bat build web --release
+```sh
+flutter pub get
+flutter build web --release
 node scripts/preview.mjs
 ```
 
-Open http://127.0.0.1:4173. Keep the terminal running. Always use the same address and port to keep browser demo storage consistent.
+Open [the local preview](http://127.0.0.1:4173/). Keep the terminal running. Always use the same address and port to keep browser demo storage consistent.
 
 For hot reload, run `flutter run -d chrome` with Flutter on PATH. For a native device, install/configure the Android SDK (or Xcode on macOS), connect a device, then use `flutter devices` and `flutter run -d DEVICE_ID`.
 
@@ -25,14 +25,14 @@ For hot reload, run `flutter run -d chrome` with Flutter on PATH. For a native d
 - Open a sample listing and message its seller or send a cash offer.
 - Open the pre-seeded Inbox conversation and accept its sample incoming offer: its listing becomes reserved. Repeat acceptance is rejected.
 
-All demo messages, photos, favorites, offers, and listing changes stay in this device/browser's local storage. No real seller receives a message, no email is verified, and no transaction or payment occurs. Demo photos are illustrative; see assets/IMAGE_SOURCES.md. Clearing app/browser data resets the demo. The local photo limit is 1.5 MB per image; large collections can exceed browser storage capacity.
+All demo messages, photos, favorites, offers, and listing changes stay in this device/browser's local storage. No real seller receives a message, no email is verified, and no transaction or payment occurs. Demo photos are illustrative; see [image sources](assets/IMAGE_SOURCES.md). Clearing app/browser data resets the demo. The local photo limit is 1.5 MB per image; large collections can exceed browser storage capacity.
 
 ## Verification
 
-```powershell
-& C:\src\flutter\bin\flutter.bat analyze
-& C:\src\flutter\bin\flutter.bat test --no-pub
-& C:\src\flutter\bin\flutter.bat build web --release
+```sh
+flutter analyze
+flutter test --no-pub
+flutter build web --release
 ```
 
 The default tests are offline and do not create Supabase accounts. The older integration_test suite targets the legacy live backend and is not part of the verified offline suite.
