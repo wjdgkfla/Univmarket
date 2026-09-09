@@ -94,3 +94,8 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Local verification: 39-test full suite and clean analyzer, plus an additional passing rejection test (40 tests total). Mocked SDK tests do not prove hosted authorization or multiuser transaction correctness.
 - Hosted read-only review confirms anon cannot execute respond_to_offer, while authenticated can. Current function lacks explicit active-account, expiration and listing-availability checks before acceptance; server hardening and concurrency tests remain release gates. No hosted function was changed and no real offer was sent.
 - Final full-suite verification: all 40 tests passed.
+
+## Native secure persistence
+- Replaced ordinary preference persistence with native secure session and PKCE storage on iOS/Android; kept browser storage for web.
+- Added verified migration of legacy values, scoped keys, Keychain entitlements and Android backup exclusion.
+- All 43 local tests pass and analyzer is clean. Physical-device persistence verification remains required; updated native CI is pending.
