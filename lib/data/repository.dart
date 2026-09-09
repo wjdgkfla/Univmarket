@@ -102,13 +102,93 @@ class Repository extends ChangeNotifier {
   Future<void> selectUniversity(String id) async => throw UnsupportedError(
     'University membership is not configured on this backend.',
   );
-  Future<void> markSold(String id) async => throw UnsupportedError(
-    'Listing management is not configured on this backend.',
-  );
-  Future<void> sendOffer(String conversationId, int amount) async =>
-      throw UnsupportedError(
-        'Offer creation is not configured on this backend.',
+  void _requireConfirmedAccount() {
+    final user = _db.auth.currentUser;
+    if (!ready ||
+        bootstrapError != null ||
+        user == null ||
+        user.id != _me.id ||
+        user.isAnonymous ||
+        user.emailConfirmedAt == null) {
+      throw StateError('Sign in with your confirmed university account.');
+    }
+  }
+
+  Future<void> markSold(String id) async {
+    _requireConfirmedAccount();
+    final listing = getListing(id);
+    if (listing == null ||
+        listing.sellerId != _me.id ||
+        listing.universityId != _universityId ||
+        listing.status != 'available') {
+      throw StateError('Only your available listings can be marked sold.');
+    }
+    final row = await _db
+        .from('listings')
+        .update({'status': 'sold'})
+        .eq('id', id)
+        .eq('seller_id', _me.id)
+        .eq('university_id', _universityId!)
+        .eq('status', 'available')
+        .isFilter('deleted_at', null)
+        .select()
+        .single();
+    final saved = await _listingFromRow(row);
+    final index = _listings.indexWhere((item) => item.id == id);
+    if (index >= 0) _listings[index] = saved;
+    notifyListeners();
+  }
+
+  Future<void> sendOffer(String conversationId, int amount) async {
+    _requireConfirmedAccount();
+    if (amount < 1 || amount > 100000) {
+      throw ArgumentError('Enter an offer between 1 and 100000.');
+    }
+    final thread = getConversation(conversationId);
+    final listing = thread == null ? null : getListing(thread.listingId);
+    if (thread == null ||
+        listing == null ||
+        listing.status != 'available' ||
+        listing.universityId != _universityId ||
+        listing.sellerId == _me.id ||
+        thread.sellerId != listing.sellerId) {
+      throw StateError('This listing is not available for an offer.');
+    }
+    final id =
+        await _db.rpc(
+              'send_offer',
+              params: {
+                'p_conversation_id': conversationId,
+                'p_kind': 'cash',
+                'p_cash_amount': amount,
+                'p_offered_listing_ids': <String>[],
+              },
+            )
+            as String;
+    // A confirmed RPC is a successful send. Do not turn a subsequent read
+    // failure into a retry that submits a duplicate offer.
+    final current = getConversation(conversationId);
+    if (current != null &&
+        !current.messages.any((message) => message.id == id)) {
+      final index = _conversations.indexWhere(
+        (item) => item.id == conversationId,
       );
+      _conversations[index] = current.copyWith(
+        messages: [
+          ...current.messages,
+          OfferMessage(
+            id,
+            MessageFrom.me,
+            amount,
+            listing.id,
+            OfferStatus.pending,
+          ),
+        ],
+      );
+      notifyListeners();
+    }
+  }
+
   Repository({this.client}) {
     initialized = _bootstrap();
   }
@@ -266,7 +346,7 @@ class Repository extends ChangeNotifier {
         .from('listings')
         .select()
         .eq('university_id', _universityId!)
-        .eq('status', 'available')
+        .or('status.eq.available,seller_id.eq.${_me.id}')
         .eq('moderation_state', 'visible')
         .isFilter('deleted_at', null)
         .order('created_at', ascending: false);

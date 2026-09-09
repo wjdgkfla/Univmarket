@@ -9,6 +9,8 @@ import 'package:univmarket_app/data/models.dart';
 Future<({Repository repo, List<http.Request> requests})> fixture({
   bool rejectUpdates = false,
   bool rejectUploads = false,
+  bool withConversation = false,
+  bool rejectOffers = false,
   String sellerId = 'student',
 }) async {
   final requests = <http.Request>[];
@@ -45,7 +47,26 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
       }
       Object result = [];
       final path = request.url.path;
-      if (path.startsWith('/storage/v1/object/sign/')) {
+      if (path.endsWith('/rpc/send_offer')) {
+        if (rejectOffers) {
+          return http.Response(
+            jsonEncode({'code': 'P0001', 'message': 'messaging unavailable'}),
+            400,
+            request: request,
+            headers: {'content-type': 'application/json'},
+          );
+        }
+        result = 'offer-confirmed';
+      } else if (path.endsWith('/conversations') && withConversation) {
+        result = [
+          {
+            'id': 'thread',
+            'listing_id': 'listing-b',
+            'buyer_id': 'student',
+            'seller_id': sellerId,
+          },
+        ];
+      } else if (path.startsWith('/storage/v1/object/sign/')) {
         result = {
           'signedURL': '/object/sign/listing-images/photo.jpg?token=test',
         };
@@ -167,6 +188,68 @@ Future<void> save(
   imageSource: photo,
 );
 void main() {
+  test(
+    'mark sold rejects another owner and rejected updates preserve availability',
+    () async {
+      final outsider = await fixture(sellerId: 'other');
+      await expectLater(outsider.repo.markSold('listing-b'), throwsStateError);
+      expect(outsider.requests, isEmpty);
+      final denied = await fixture(rejectUpdates: true);
+      await expectLater(
+        denied.repo.markSold('listing-b'),
+        throwsA(isA<PostgrestException>()),
+      );
+      expect(denied.repo.getListing('listing-b')!.status, 'available');
+    },
+  );
+  test(
+    'live buyer sends cash offer and caches only the confirmed offer ID',
+    () async {
+      final f = await fixture(withConversation: true, sellerId: 'seller');
+      await f.repo.sendOffer('thread', 25);
+      expect(f.requests.single.url.path, '/rest/v1/rpc/send_offer');
+      expect(jsonDecode(f.requests.single.body), {
+        'p_conversation_id': 'thread',
+        'p_kind': 'cash',
+        'p_cash_amount': 25,
+        'p_offered_listing_ids': [],
+      });
+      final message =
+          f.repo.getConversation('thread')!.messages.single as OfferMessage;
+      expect(message.id, 'offer-confirmed');
+      expect(message.amount, 25);
+      expect(message.status, OfferStatus.pending);
+    },
+  );
+  test('rejected offer does not add a local success message', () async {
+    final f = await fixture(
+      withConversation: true,
+      sellerId: 'seller',
+      rejectOffers: true,
+    );
+    await expectLater(
+      f.repo.sendOffer('thread', 25),
+      throwsA(isA<PostgrestException>()),
+    );
+    expect(f.repo.getConversation('thread')!.messages, isEmpty);
+  });
+  test('invalid amounts and own listings cannot receive offers', () async {
+    final f = await fixture(withConversation: true);
+    await expectLater(f.repo.sendOffer('thread', 0), throwsArgumentError);
+    await expectLater(f.repo.sendOffer('thread', 25), throwsStateError);
+    expect(f.requests, isEmpty);
+  });
+  test(
+    'mark sold updates only an owned available listing and confirms result',
+    () async {
+      final f = await fixture();
+      await f.repo.markSold('listing-b');
+      expect(jsonDecode(f.requests.single.body), {'status': 'sold'});
+      expect(f.requests.single.url.queryParameters['seller_id'], 'eq.student');
+      expect(f.requests.single.url.queryParameters['status'], 'eq.available');
+      expect(f.repo.getListing('listing-b')!.status, 'sold');
+    },
+  );
   test(
     'upload rejection stops the listing write and preserves cached listings',
     () async {

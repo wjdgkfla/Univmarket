@@ -86,3 +86,11 @@ AUTH_SETUP.md records required hosted redirect allowlisting and email configurat
 - Run 34325217597 succeeded at source commit 4a4613a: analyzer and 35 tests, Android debug APK, unsigned iOS release app.
 - Downloaded and inspected both artifacts; SHA-256 and run link are in NATIVE_BUILDS.md.
 - Native compilation is now verified. Device behavior, production signing, backend/storage hardening and remaining marketplace flows are still incomplete; deployment goal remains active.
+
+## Live offer and listing-status adapter
+- Implemented cash-offer RPC calls with positive whole-dollar validation and cached buyer/listing checks. The confirmed server offer ID is added to the conversation without a follow-up read that could misreport success and cause duplicate submission.
+- Implemented mark-sold using owner/university/available/nondeleted filters and confirmed returned rows. Failed writes leave cached status unchanged.
+- Live feed reads retain a seller's unavailable listings so sold items remain available in their profile; home/search already filter available status.
+- Local verification: 39-test full suite and clean analyzer, plus an additional passing rejection test (40 tests total). Mocked SDK tests do not prove hosted authorization or multiuser transaction correctness.
+- Hosted read-only review confirms anon cannot execute respond_to_offer, while authenticated can. Current function lacks explicit active-account, expiration and listing-availability checks before acceptance; server hardening and concurrency tests remain release gates. No hosted function was changed and no real offer was sent.
+- Final full-suite verification: all 40 tests passed.

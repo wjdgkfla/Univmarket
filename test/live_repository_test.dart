@@ -140,6 +140,10 @@ void main() {
         (r) => r.url.path.endsWith('/listings'),
       );
       expect(feedRequest.url.queryParameters['university_id'], 'eq.school-b');
+      expect(
+        feedRequest.url.queryParameters['or'],
+        '(status.eq.available,seller_id.eq.student)',
+      );
       expect(repo.listListings().single.universityId, 'school-b');
       expect(
         repo.listListings().single.imageSource,
