@@ -37,3 +37,11 @@ The hosted privilege regression test reproduced permission to update protected p
 Until approved and applied, the hosted profile privileges remain vulnerable. The existing Fenwick assignment and other RPC authorization gaps also remain. No live accounts or emails were created/sent during this work.
 
 Live-mode web compilation passed with --dart-define-from-file=config/supabase.dev.json --output=build/live. The standard demo preview output was preserved. Flutter analysis passed after two brace-style fixes. Native builds remain untested.
+
+## Campus-scoped live reads
+
+The live repository now derives university and campus from the server profile. It validates that the assigned campus belongs to that active university, restricts pickup zones to that campus, and adds the university filter to the listing query. Missing assignments fail startup instead of silently choosing Fenwick. Listing university/status/cover photo are retained; HTTPS photos render as network images with an error fallback.
+
+The repository accepts an injected Supabase client and exposes an initialization Future. SDK-level tests use a mock HTTP transport, not the hosted database: they verify actual generated request parameters, profile-based school naming, listing metadata, and zero backend requests for signed-out access. 18 total tests passed and analysis reports no issues.
+
+These client filters are not server authorization. The hosted profile RPC still assigns Fenwick and its privileges remain unchanged while explicit migration approval is pending. Native deployment and the full release goal remain incomplete.

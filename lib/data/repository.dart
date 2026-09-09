@@ -76,7 +76,11 @@ const categories = [
 ];
 
 class Repository extends ChangeNotifier {
-  Repository.offline();
+  Repository.offline() : client = null {
+    initialized = Future.value();
+  }
+  final SupabaseClient? client;
+  late final Future<void> initialized;
   bool _disposed = false;
   @override
   void notifyListeners() {
@@ -103,11 +107,11 @@ class Repository extends ChangeNotifier {
       throw UnsupportedError(
         'Offer creation is not configured on this backend.',
       );
-  Repository() {
-    _bootstrap();
+  Repository({this.client}) {
+    initialized = _bootstrap();
   }
 
-  SupabaseClient get _db => supabase;
+  SupabaseClient get _db => client ?? supabase;
 
   /// True once the initial auth + data bootstrap has finished (success or
   /// failure). Screens don't currently gate on this directly — main.dart's
@@ -119,7 +123,7 @@ class Repository extends ChangeNotifier {
     id: '',
     name: '',
     initials: '?',
-    school: 'Fenwick University',
+    school: '',
     rating: 0,
     dealsDone: 0,
     meetupsKeptPct: 100,
@@ -133,6 +137,7 @@ class Repository extends ChangeNotifier {
   Map<String, String> _zoneNames = {}; // pickup_zone_id -> display name
   String? _universityId;
   String? _campusId;
+  String _schoolName = '';
 
   Profile get me => _me;
   Set<String> get favorites => Set.unmodifiable(_favorites);
@@ -175,27 +180,40 @@ class Repository extends ChangeNotifier {
       }
       final profileRow =
           await _db.rpc('ensure_profile') as Map<String, dynamic>;
-      _me = _profileFromRow(profileRow);
-      _profiles[_me.id] = _me;
-
-      final zoneRows = await _db.from('pickup_zones').select('id, name');
-      _zoneNames = {
-        for (final z in zoneRows) z['id'] as String: z['name'] as String,
-      };
-
-      final uniRow = await _db
+      _universityId = profileRow['university_id'] as String?;
+      _campusId = profileRow['home_campus_id'] as String?;
+      if (_universityId == null || _campusId == null) {
+        throw StateError(
+          'Your university and campus must be assigned before entering the marketplace.',
+        );
+      }
+      final university = await _db
           .from('universities')
-          .select('id')
-          .eq('slug', 'fenwick')
+          .select('id, name')
+          .eq('id', _universityId!)
+          .eq('active', true)
           .single();
-      _universityId = uniRow['id'] as String;
-      final campusRow = await _db
+      _schoolName = university['name'] as String;
+      // Validate that the profile's campus belongs to its assigned university.
+      await _db
           .from('campuses')
           .select('id')
-          .eq('slug', 'main')
+          .eq('id', _campusId!)
+          .eq('university_id', _universityId!)
+          .eq('active', true)
           .single();
-      _campusId = campusRow['id'] as String;
-
+      _me = _profileFromRow(profileRow);
+      _profiles[_me.id] = _me;
+      final zoneRows = await _db
+          .from('pickup_zones')
+          .select('id, name')
+          .eq('campus_id', _campusId!)
+          .eq('active', true)
+          .order('name');
+      _zoneNames = {
+        for (final zone in zoneRows)
+          zone['id'] as String: zone['name'] as String,
+      };
       await Future.wait([
         _refreshListings(),
         _refreshConversations(),
@@ -216,8 +234,7 @@ class Repository extends ChangeNotifier {
       id: row['id'] as String,
       name: name,
       initials: _initialsFor(name),
-      // Single-university demo — revisit if multi-university ever ships.
-      school: 'Fenwick University',
+      school: _schoolName,
       rating: ((row['reputation_score'] as num?) ?? 5).toDouble(),
       dealsDone: (row['completed_transaction_count'] as int?) ?? 0,
       // Not tracked by the schema yet.
@@ -246,6 +263,7 @@ class Repository extends ChangeNotifier {
     final rows = await _db
         .from('listings')
         .select()
+        .eq('university_id', _universityId!)
         .eq('status', 'available')
         .eq('moderation_state', 'visible')
         .isFilter('deleted_at', null)
@@ -264,6 +282,9 @@ class Repository extends ChangeNotifier {
     trades: r['accepts_trades'] as bool? ?? false,
     description: (r['description'] as String?) ?? '',
     sellerId: r['seller_id'] as String,
+    universityId: r['university_id'] as String,
+    status: r['status'] as String? ?? 'available',
+    imageSource: r['cover_image_url'] as String?,
   );
 
   Future<void> _refreshFavorites() async {

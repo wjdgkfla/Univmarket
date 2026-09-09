@@ -51,7 +51,7 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
     _clearRepository();
     if (id != null) {
       _userId = id;
-      _repository = Repository()..addListener(_changed);
+      _repository = Repository(client: widget.client)..addListener(_changed);
       _app = UnivMarketApp(key: ValueKey(id), repository: _repository);
     }
   }
