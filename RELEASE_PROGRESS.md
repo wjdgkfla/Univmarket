@@ -25,3 +25,15 @@ Next work:
 3. Complete and test live repository writes, storage and private conversations/atomic offers, then launch-essential trust flows and native builds.
 
 Do not treat these tests or configuration changes as evidence of live multi-user release readiness. See RELEASE_WORK_PLAN.md for the full remaining scope.
+
+## Authentication and privilege migration progress
+
+The app now has explicit sign-in and registration UI, a confirmed-account gate, and sign-out. Anonymous auto-login was removed. The repository cache is replaced on account changes; callbacks from disposed repositories no longer notify listeners. Registration presents an email-confirmation instruction. Password recovery, account deletion, secure native session storage, and real university authorization remain incomplete.
+
+15 offline tests passed, including form validation, normalized email submission, generic retryable error handling, and registration confirmation messaging. These tests use a fake authentication service and do not prove live email delivery or end-to-end session behavior.
+
+The hosted privilege regression test reproduced permission to update protected profile fields. The migration at supabase/migrations/20260909065021_protect_profile_privileges.sql and test at supabase/tests/profile_privileges.sql are saved but NOT applied. Automatic approval review rejected the broad privilege change because it could break existing behavior. An explicit approval question is pending. Do not execute the same migration through another tool or split it to evade that rejection.
+
+Until approved and applied, the hosted profile privileges remain vulnerable. The existing Fenwick assignment and other RPC authorization gaps also remain. No live accounts or emails were created/sent during this work.
+
+Live-mode web compilation passed with --dart-define-from-file=config/supabase.dev.json --output=build/live. The standard demo preview output was preserved. Flutter analysis passed after two brace-style fixes. Native builds remain untested.

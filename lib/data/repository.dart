@@ -77,6 +77,18 @@ const categories = [
 
 class Repository extends ChangeNotifier {
   Repository.offline();
+  bool _disposed = false;
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   bool get isDemo => false;
   String get universityId => _universityId ?? '';
   Map<String, String> get universities => {_universityId ?? '': me.school};
@@ -157,8 +169,9 @@ class Repository extends ChangeNotifier {
   Future<void> _bootstrap() async {
     try {
       final auth = _db.auth;
-      if (auth.currentSession == null) {
-        await auth.signInAnonymously();
+      final user = auth.currentUser;
+      if (user == null || user.isAnonymous || user.emailConfirmedAt == null) {
+        throw StateError('A confirmed email account is required.');
       }
       final profileRow =
           await _db.rpc('ensure_profile') as Map<String, dynamic>;

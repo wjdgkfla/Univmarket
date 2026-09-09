@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'app.dart';
+import 'auth/live_auth_gate.dart';
 import 'data/demo_repository.dart';
 import 'data/repository.dart';
 import 'data/supabase_client.dart';
@@ -22,6 +23,7 @@ class Startup extends StatefulWidget {
 
 class _StartupState extends State<Startup> {
   Repository? _repository;
+  bool _liveInitialized = false;
   String? _error;
   @override
   void initState() {
@@ -34,10 +36,7 @@ class _StartupState extends State<Startup> {
     try {
       if (liveMode) {
         await initSupabase();
-        final repo = Repository();
-        _repository = repo;
-        repo.addListener(_changed);
-        if (mounted) setState(() {});
+        if (mounted) setState(() => _liveInitialized = true);
       } else {
         final repo = await DemoRepository.open();
         if (!mounted) {
@@ -69,6 +68,7 @@ class _StartupState extends State<Startup> {
 
   @override
   Widget build(BuildContext context) {
+    if (_liveInitialized) return LiveAuthGate(client: supabase);
     if (_repository?.ready == true && _repository?.bootstrapError == null) {
       return UnivMarketApp(repository: _repository!);
     }
