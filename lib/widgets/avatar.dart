@@ -17,9 +17,7 @@ class Avatar extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        gradient: LinearGradient(
-          colors: [colors.accent, colors.accentDeep, colors.pink],
-        ),
+        gradient: LinearGradient(colors: [colors.accent, colors.accentDeep]),
       ),
       child: Text(
         initials,

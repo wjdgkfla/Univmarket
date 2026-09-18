@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../data/repository.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/listing_row.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -24,17 +26,19 @@ class SavedScreen extends StatelessWidget {
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 10),
-            Text('${saved.length} saved in ${repo.me.school}'),
+            Text(
+              saved.isEmpty
+                  ? 'Items you save show up here.'
+                  : '${saved.length} saved',
+            ),
             const SizedBox(height: 24),
             if (saved.isEmpty)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 60),
-                  child: Text(
-                    'Tap the heart on a listing to keep it here.',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+              EmptyState(
+                icon: Icons.favorite_border,
+                title: 'Nothing saved yet',
+                message: 'Tap the heart on any listing to keep an eye on it.',
+                actionLabel: 'Browse listings',
+                onAction: () => context.go('/'),
               ),
             for (final listing in saved)
               Padding(

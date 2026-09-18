@@ -401,7 +401,19 @@ class Repository extends ChangeNotifier {
     _favorites = {for (final r in rows) r['listing_id'] as String};
   }
 
+  final Set<String> _togglingFavorites = {};
+
   Future<void> toggleFavorite(String listingId) async {
+    // Ignore repeat taps while the first request is in flight.
+    if (!_togglingFavorites.add(listingId)) return;
+    try {
+      await _toggleFavorite(listingId);
+    } finally {
+      _togglingFavorites.remove(listingId);
+    }
+  }
+
+  Future<void> _toggleFavorite(String listingId) async {
     if (_favorites.contains(listingId)) {
       await _db
           .from('favorites')
@@ -464,10 +476,21 @@ class Repository extends ChangeNotifier {
     ];
 
     final isBuyer = buyerId == _me.id;
-    final lastReadAt = isBuyer
-        ? row['buyer_last_read_at']
-        : row['seller_last_read_at'];
-    final unread = lastReadAt == null && msgRows.isNotEmpty;
+    final lastReadAt = DateTime.tryParse(
+      (isBuyer ? row['buyer_last_read_at'] : row['seller_last_read_at'])
+              as String? ??
+          '',
+    );
+    // Unread = the other party has written since I last opened the thread.
+    final unread = msgRows.any(
+      (m) =>
+          m['from_user_id'] != _me.id &&
+          (lastReadAt == null ||
+              (DateTime.tryParse(
+                    m['created_at'] as String? ?? '',
+                  )?.isAfter(lastReadAt) ??
+                  false)),
+    );
 
     return Conversation(
       id: id,
@@ -513,6 +536,18 @@ class Repository extends ChangeNotifier {
             as String;
     await refreshConversation(id);
     return id;
+  }
+
+  /// Clears the unread dot for [conversationId]. Best effort: a failure only
+  /// leaves the dot showing, so callers need not surface it.
+  Future<void> markConversationRead(String conversationId) async {
+    try {
+      await _db.rpc(
+        'mark_conversation_read',
+        params: {'p_conversation_id': conversationId},
+      );
+      await refreshConversation(conversationId);
+    } catch (_) {}
   }
 
   /// Re-fetches one conversation (messages + offers) and updates the cache.

@@ -128,6 +128,39 @@ const Map<String, SchoolColors> schoolColors = {
   ),
 };
 
+/// Neutral UnivMarket theme for screens shown before the school is known
+/// (sign-in, loading, errors, update required).
+ThemeData brandTheme() {
+  const c = AppColors.light;
+  final border = OutlineInputBorder(
+    borderRadius: BorderRadius.circular(AppRadius.sm),
+    borderSide: const BorderSide(color: Color(0xFFD5D8E0)),
+  );
+  return ThemeData(
+    useMaterial3: true,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: c.accent,
+    ).copyWith(primary: c.accent, onPrimary: c.accentInk),
+    scaffoldBackgroundColor: c.bg,
+    extensions: const [c],
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: c.surface,
+      border: border,
+      enabledBorder: border,
+      focusedBorder: border.copyWith(
+        borderSide: BorderSide(color: c.accent, width: 1.6),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        minimumSize: const Size.fromHeight(52),
+        textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+      ),
+    ),
+  );
+}
+
 class AppRadius {
   static const card = 20.0;
   static const sm = 14.0;

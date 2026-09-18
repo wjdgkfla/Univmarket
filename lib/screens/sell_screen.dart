@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/listing_photo.dart';
 import '../data/repository.dart';
+import '../widgets/async_action.dart';
 import '../widgets/screen_scaffold.dart';
 
 class SellScreen extends StatefulWidget {
@@ -38,7 +39,8 @@ class _SellScreenState extends State<SellScreen> {
       description.text = listing.description;
       category = listing.tag;
       condition = listing.condition;
-      zone = listing.zone;
+      // A pickup spot removed since posting must not break the dropdown.
+      if (repo.pickupZones.contains(listing.zone)) zone = listing.zone;
       photo = listing.imageSource;
     }
   }
@@ -52,11 +54,7 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   void error(Object e) {
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.toString())));
-    }
+    if (mounted) showError(context, e);
   }
 
   Future<void> choosePhoto() async {

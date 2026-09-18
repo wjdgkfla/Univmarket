@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../app.dart';
 import '../data/repository.dart';
 import '../theme/tokens.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/listing_tile.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -151,12 +152,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 14),
             if (items.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 40),
-                child: Text(
-                  'Nothing here yet. Be the first to list something.',
-                ),
-              ),
+              category == 'All'
+                  ? EmptyState(
+                      icon: Icons.storefront_outlined,
+                      title: 'Be the first to sell here',
+                      message:
+                          'Post something you no longer need and it will show up for everyone at ${repo.me.school}.',
+                      actionLabel: 'Post a listing',
+                      onAction: () => context.go('/sell'),
+                    )
+                  : EmptyState(
+                      icon: Icons.search_off,
+                      title: 'No $category yet',
+                      message: 'Try another category or check back soon.',
+                      actionLabel: 'Show all',
+                      onAction: () => setState(() => category = 'All'),
+                    ),
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = constraints.maxWidth > 650 ? 3 : 2;

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../theme/tokens.dart';
 
 typedef MinimumVersion = ({int minBuild, String? updateUrl});
 
@@ -56,6 +57,7 @@ class _VersionGateState extends State<VersionGate> {
     final url = _required?.updateUrl;
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: brandTheme(),
       home: Scaffold(
         body: Center(
           child: Padding(

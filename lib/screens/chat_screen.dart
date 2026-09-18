@@ -22,11 +22,14 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final draftController = TextEditingController();
   ConversationSync? _sync;
+  late final Repository _repo;
+  bool _sending = false;
 
   @override
   void initState() {
     super.initState();
-    final repo = context.read<Repository>();
+    final repo = _repo = context.read<Repository>();
+    unawaited(repo.markConversationRead(widget.id));
     if (repo.isDemo) return;
     _sync = ConversationSync(
       changes: repo.conversationChanges(widget.id),
@@ -50,6 +53,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    // Messages that arrived while the chat was open count as read too.
+    unawaited(_repo.markConversationRead(widget.id));
     _sync?.removeListener(_syncChanged);
     _sync?.dispose();
     draftController.dispose();
@@ -63,7 +68,15 @@ class _ChatScreenState extends State<ChatScreen> {
     final conversation = repo.getConversation(widget.id);
     if (conversation == null) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Conversation')),
+        appBar: AppBar(
+          title: const Text('Conversation'),
+          leading: IconButton(
+            tooltip: 'Go back',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/inbox'),
+          ),
+        ),
         body: _sync?.failed == true
             ? _retryBanner()
             : const Center(child: CircularProgressIndicator()),
@@ -90,10 +103,12 @@ class _ChatScreenState extends State<ChatScreen> {
                     label: 'Go back',
                     child: InkWell(
                       customBorder: const CircleBorder(),
-                      onTap: () => context.pop(),
+                      onTap: () => context.canPop()
+                          ? context.pop()
+                          : context.go('/inbox'),
                       child: Container(
-                        width: 36,
-                        height: 36,
+                        width: 44,
+                        height: 44,
                         alignment: Alignment.center,
                         child: Icon(
                           Icons.chevron_left_rounded,
@@ -184,7 +199,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       customBorder: const CircleBorder(),
                       onTap: () async {
                         final text = draftController.text.trim();
-                        if (text.isEmpty) return;
+                        if (text.isEmpty || _sending) return;
+                        setState(() => _sending = true);
                         try {
                           await context.read<Repository>().sendMessage(
                             conversation.id,
@@ -192,16 +208,14 @@ class _ChatScreenState extends State<ChatScreen> {
                           );
                           if (mounted) draftController.clear();
                         } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(e.toString())),
-                            );
-                          }
+                          if (context.mounted) showError(context, e);
+                        } finally {
+                          if (mounted) setState(() => _sending = false);
                         }
                       },
                       child: Container(
-                        width: 38,
-                        height: 38,
+                        width: 44,
+                        height: 44,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
                           color: c.accent,
@@ -321,38 +335,9 @@ class _MessageBubble extends StatelessWidget {
                       bottom: Radius.circular(16),
                     ),
                   ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _TicketButton(
-                          label: 'Decline',
-                          bg: c.surface2,
-                          fg: c.inkSoft,
-                          onTap: () => runAction(
-                            context,
-                            () => context.read<Repository>().declineOffer(
-                              conversationId,
-                              m.id,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _TicketButton(
-                          label: 'Accept',
-                          bg: c.good,
-                          fg: Colors.white,
-                          onTap: () => runAction(
-                            context,
-                            () => context.read<Repository>().acceptOffer(
-                              conversationId,
-                              m.id,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: _OfferActions(
+                    conversationId: conversationId,
+                    offerId: m.id,
                   ),
                 ),
             ],
@@ -394,10 +379,62 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
+/// Accept/Decline for a received offer. Both disable while a response is in
+/// flight so the one-way action can't be submitted twice.
+class _OfferActions extends StatefulWidget {
+  const _OfferActions({required this.conversationId, required this.offerId});
+  final String conversationId, offerId;
+  @override
+  State<_OfferActions> createState() => _OfferActionsState();
+}
+
+class _OfferActionsState extends State<_OfferActions> {
+  bool _busy = false;
+
+  Future<void> _respond(bool accept) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final repo = context.read<Repository>();
+    await runAction(
+      context,
+      () => accept
+          ? repo.acceptOffer(widget.conversationId, widget.offerId)
+          : repo.declineOffer(widget.conversationId, widget.offerId),
+    );
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Row(
+      children: [
+        Expanded(
+          child: _TicketButton(
+            label: 'Decline',
+            bg: c.surface2,
+            fg: c.inkSoft,
+            onTap: _busy ? null : () => _respond(false),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _TicketButton(
+            label: 'Accept',
+            bg: c.good,
+            fg: Colors.white,
+            onTap: _busy ? null : () => _respond(true),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _TicketButton extends StatelessWidget {
   final String label;
   final Color bg, fg;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _TicketButton({
     required this.label,
     required this.bg,
@@ -407,19 +444,19 @@ class _TicketButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    final material = Material(
       color: bg,
       borderRadius: BorderRadius.circular(11),
       child: InkWell(
         borderRadius: BorderRadius.circular(11),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 13),
           child: Text(
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: 13.5,
               fontWeight: FontWeight.w700,
               color: fg,
             ),
@@ -427,5 +464,6 @@ class _TicketButton extends StatelessWidget {
         ),
       ),
     );
+    return Opacity(opacity: onTap == null ? 0.5 : 1, child: material);
   }
 }
