@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/models.dart';
 import '../theme/tokens.dart';
 import 'category_art.dart';
+import 'pill.dart';
 
 class ListingImage extends StatelessWidget {
   const ListingImage({
@@ -54,19 +55,24 @@ class ListingImage extends StatelessWidget {
             Positioned(
               left: 10,
               bottom: 10,
-              child: Chip(label: Text(listing.status.toUpperCase())),
+              child: Pill(
+                label: listing.status,
+                tone: listing.status == 'sold' ? PillTone.bad : PillTone.warn,
+              ),
             ),
           if (onSave != null)
             Positioned(
               right: 6,
               top: 6,
               child: IconButton.filledTonal(
-                style: IconButton.styleFrom(backgroundColor: Colors.white),
+                style: IconButton.styleFrom(
+                  backgroundColor: context.colors.surface,
+                ),
                 tooltip: saved ? 'Remove from saved' : 'Save listing',
                 onPressed: onSave,
                 icon: Icon(
                   saved ? Icons.favorite : Icons.favorite_border,
-                  color: saved ? context.colors.accent : Colors.black87,
+                  color: saved ? context.colors.accent : context.colors.ink,
                 ),
               ),
             ),

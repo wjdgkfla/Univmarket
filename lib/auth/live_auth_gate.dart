@@ -7,6 +7,7 @@ import '../app.dart';
 import '../data/repository.dart';
 import '../screens/auth_screen.dart';
 import '../screens/password_recovery_screen.dart';
+import '../theme/tokens.dart';
 import 'auth_service.dart';
 import 'auth_browser_location.dart';
 import 'recovery_service.dart';
@@ -311,10 +312,7 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
     }
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFBD431D)),
-        useMaterial3: true,
-      ),
+      theme: brandTheme(),
       home: home,
     );
   }

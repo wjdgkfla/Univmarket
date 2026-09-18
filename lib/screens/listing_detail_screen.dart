@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../data/repository.dart';
 import '../data/models.dart';
+import '../widgets/async_action.dart';
 import '../widgets/listing_image.dart';
 
 class ListingDetailScreen extends StatelessWidget {
@@ -38,11 +39,7 @@ class ListingDetailScreen extends StatelessWidget {
         }
         if (context.mounted) context.push('/chat/$conversation');
       } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.toString())));
-        }
+        if (context.mounted) showError(context, e);
       }
     }
 
@@ -63,17 +60,7 @@ class ListingDetailScreen extends StatelessWidget {
             child: ListingImage(
               listing: listing,
               saved: repo.favorites.contains(id),
-              onSave: () async {
-                try {
-                  await repo.toggleFavorite(id);
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(SnackBar(content: Text(e.toString())));
-                  }
-                }
-              },
+              onSave: () => runAction(context, () => repo.toggleFavorite(id)),
             ),
           ),
           const SizedBox(height: 22),
@@ -91,7 +78,12 @@ class ListingDetailScreen extends StatelessWidget {
             spacing: 8,
             children: [
               Chip(label: Text(listing.condition.label)),
-              Chip(label: Text(listing.status)),
+              if (listing.status != 'available')
+                Chip(
+                  label: Text(
+                    '${listing.status[0].toUpperCase()}${listing.status.substring(1)}',
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: 12),
@@ -132,14 +124,29 @@ class ListingDetailScreen extends StatelessWidget {
               onPressed: listing.status == 'sold'
                   ? null
                   : () async {
-                      try {
-                        await repo.markSold(id);
-                      } catch (e) {
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(
-                            context,
-                          ).showSnackBar(SnackBar(content: Text(e.toString())));
-                        }
+                      final confirmed = await showDialog<bool>(
+                        context: context,
+                        builder: (dialogContext) => AlertDialog(
+                          title: const Text('Mark as sold?'),
+                          content: const Text(
+                            'Buyers will no longer see this listing or be able to make offers. This can\'t be undone.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed: () =>
+                                  Navigator.pop(dialogContext, true),
+                              child: const Text('Mark as sold'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (confirmed == true && context.mounted) {
+                        await runAction(context, () => repo.markSold(id));
                       }
                     },
               child: const Text('Mark as sold'),

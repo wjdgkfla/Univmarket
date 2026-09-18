@@ -96,7 +96,10 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
       await tester.pumpAndSettle();
       expect(auth.registered, isTrue);
-      expect(find.textContaining('Check your email'), findsOneWidget);
+      expect(
+        find.textContaining('confirmation link to student@gmu.edu'),
+        findsOneWidget,
+      );
     },
   );
 }

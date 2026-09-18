@@ -37,7 +37,7 @@ class _AuthScreenState extends State<AuthScreen> {
         if (mounted) {
           setState(() {
             _message =
-                'Check your email to confirm your account, then sign in. Your university membership will be checked separately.';
+                'We sent a confirmation link to $email. Open it, then sign in here. Check your spam folder if you don\'t see it.';
             _register = false;
             _password.clear();
           });
@@ -79,17 +79,45 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.storefront_outlined, size: 48),
-                    const SizedBox(height: 20),
-                    Text(
-                      'UnivMarket',
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.school_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                          size: 32,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'UnivMarket',
+                          style: TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    const Text(
+                      'Good finds.\nRight on campus.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.headlineLarge,
+                      style: TextStyle(
+                        fontSize: 30,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -1.2,
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'Your campus marketplace. Sign in or sign up with your @gmu.edu or @gwu.edu email.',
+                    Text(
+                      _register
+                          ? 'Create your account with your @gmu.edu or @gwu.edu email.'
+                          : 'Sign in with your @gmu.edu or @gwu.edu email.',
                       textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 28),
                     TextFormField(

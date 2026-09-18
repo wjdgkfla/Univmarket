@@ -6,6 +6,7 @@ import '../data/models.dart';
 import '../data/repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/pill.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -41,7 +42,7 @@ class InboxScreen extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
             child: Text(
               'Inbox',
               style: TextStyle(
@@ -51,6 +52,15 @@ class InboxScreen extends StatelessWidget {
               ),
             ),
           ),
+          if (conversations.isEmpty)
+            EmptyState(
+              icon: Icons.chat_bubble_outline,
+              title: 'No messages yet',
+              message:
+                  'Message a seller or make an offer, and your conversations will appear here.',
+              actionLabel: 'Browse listings',
+              onAction: () => context.go('/'),
+            ),
           for (final conv in conversations)
             _ConversationRow(conv: conv, repo: repo, colors: c),
         ],
@@ -77,7 +87,7 @@ class _ConversationRow extends StatelessWidget {
     return InkWell(
       onTap: () => context.push('/chat/${conv.id}'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
         child: Row(
           children: [
             Avatar(initials: seller?.initials ?? '?'),

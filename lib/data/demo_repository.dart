@@ -302,6 +302,22 @@ class DemoRepository extends Repository {
   @override
   Future<void> refreshConversation(String conversationId) async {}
   @override
+  Future<void> markConversationRead(String conversationId) async {
+    final t = getConversation(conversationId);
+    if (t == null || !t.unread) return;
+    _updateThread(
+      Conversation(
+        id: t.id,
+        sellerId: t.sellerId,
+        listingId: t.listingId,
+        unread: false,
+        messages: t.messages,
+      ),
+    );
+    await _save();
+  }
+
+  @override
   Future<void> sendMessage(String conversationId, String body) async {
     final thread = getConversation(conversationId);
     if (thread == null) throw StateError('Conversation unavailable');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
+import '../theme/tokens.dart';
 import '../widgets/listing_row.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -48,11 +49,20 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 18),
             TextField(
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Search listings',
                 hintText: 'Textbooks, a bike, headphones…',
-                prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: context.colors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(color: context.colors.line),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                  borderSide: BorderSide(color: context.colors.line),
+                ),
               ),
               onChanged: (v) => setState(() => query = v),
             ),

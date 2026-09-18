@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'auth/live_auth_gate.dart';
 import 'data/supabase_client.dart';
+import 'theme/tokens.dart';
 import 'widgets/version_gate.dart';
 
 SemanticsHandle? accessibilityHandle;
@@ -71,6 +72,7 @@ class _StartupState extends State<Startup> {
     }
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      theme: brandTheme(),
       home: Scaffold(
         body: Center(
           child: Padding(
