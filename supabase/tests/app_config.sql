@@ -16,6 +16,12 @@ begin
  exception when insufficient_privilege or unique_violation then null; end;
 end $$;
 grant execute on function pg_temp.assert_read_only(text) to anon, authenticated;
+do $$ begin
+ if exists(select 1 from information_schema.role_table_grants
+   where table_schema = 'public' and table_name = 'app_config'
+     and grantee in ('anon','authenticated') and privilege_type <> 'SELECT') then
+  raise exception 'Clients have more than SELECT on app_config'; end if;
+end $$;
 set local role anon;
 select pg_temp.assert_read_only('Anonymous client');
 set local role authenticated;
