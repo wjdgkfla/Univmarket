@@ -44,14 +44,16 @@ void main() {
   });
   TestWidgetsFlutterBinding.ensureInitialized();
   setUp(() => SharedPreferences.setMockInitialValues({}));
-  test('campus feeds remain isolated and selection survives restart', () async {
-    final repo = await DemoRepository.open();
-    final original = repo.listListings().map((l) => l.id).toSet();
-    await repo.selectUniversity('vt');
-    expect(repo.listListings(), isNotEmpty);
-    expect(repo.listListings().any((l) => original.contains(l.id)), isFalse);
-    expect((await DemoRepository.open()).universityId, 'vt');
-  });
+  test(
+    'feed only shows the account school, which is a launch school',
+    () async {
+      final repo = await DemoRepository.open();
+      expect(DemoRepository.schools.keys, ['gmu', 'gwu']);
+      expect(repo.schoolShortName, 'GMU');
+      expect(repo.listListings(), isNotEmpty);
+      expect(repo.listListings().every((l) => l.universityId == 'gmu'), isTrue);
+    },
+  );
   test('favorites and messages survive restart', () async {
     final repo = await DemoRepository.open();
     final id = repo.listListings().first.id;

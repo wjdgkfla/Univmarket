@@ -73,7 +73,6 @@ class _ChatScreenState extends State<ChatScreen> {
     final listing = repo.getListing(conversation.listingId);
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [

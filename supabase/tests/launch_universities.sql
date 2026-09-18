@@ -28,5 +28,10 @@ do $$ begin
  exception when insufficient_privilege then null; end;
 end $$;
 reset role;
+do $$ begin
+ if exists(select 1 from public.universities
+   where active and slug not in ('george-mason','george-washington')) then
+  raise exception 'Only GMU and GWU may be active at launch'; end if;
+end $$;
 rollback;
 select 'GMU and GWU onboarding checks passed' as result;

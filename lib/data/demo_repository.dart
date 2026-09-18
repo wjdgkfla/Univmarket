@@ -3,15 +3,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'models.dart';
 import 'repository.dart';
 
-/// Local sandbox only. This adapter never authenticates or contacts Supabase.
+/// Offline test double. The app itself always runs against Supabase; this
+/// adapter never authenticates or contacts it.
 class DemoRepository extends Repository {
   DemoRepository._(this._prefs) : super.offline();
   final SharedPreferences _prefs;
   static const _key = 'univmarket.demo.v1';
   static const schools = {
     'gmu': 'George Mason University',
-    'vt': 'Virginia Tech',
-    'umd': 'University of Maryland',
+    'gwu': 'George Washington University',
   };
   String _school = 'gmu';
   List<Listing> _items = [];
@@ -26,7 +26,7 @@ class DemoRepository extends Repository {
   @override
   String get universityId => _school;
   @override
-  Map<String, String> get universities => schools;
+  String get schoolShortName => _school.toUpperCase();
   @override
   List<String> get pickupZones => const [
     'Student center',
@@ -255,13 +255,6 @@ class DemoRepository extends Repository {
     });
     _writes = operation.catchError((Object _) {});
     return operation;
-  }
-
-  @override
-  Future<void> selectUniversity(String id) async {
-    if (!schools.containsKey(id)) throw ArgumentError('Unknown university');
-    _school = id;
-    await _save();
   }
 
   @override

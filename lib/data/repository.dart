@@ -97,11 +97,10 @@ class Repository extends ChangeNotifier {
 
   bool get isDemo => false;
   String get universityId => _universityId ?? '';
-  Map<String, String> get universities => {_universityId ?? '': me.school};
+
+  /// e.g. "GMU" — drives the market name and brand colors.
+  String get schoolShortName => _schoolShortName;
   List<String> get pickupZones => _zoneNames.values.toList();
-  Future<void> selectUniversity(String id) async => throw UnsupportedError(
-    'University membership is not configured on this backend.',
-  );
   void _requireConfirmedAccount() {
     final user = _db.auth.currentUser;
     if (!ready ||
@@ -220,6 +219,7 @@ class Repository extends ChangeNotifier {
   String? _universityId;
   String? _campusId;
   String _schoolName = '';
+  String _schoolShortName = '';
 
   Profile get me => _me;
   Set<String> get favorites => Set.unmodifiable(_favorites);
@@ -276,11 +276,12 @@ class Repository extends ChangeNotifier {
       }
       final university = await _db
           .from('universities')
-          .select('id, name')
+          .select('id, name, short_name')
           .eq('id', _universityId!)
           .eq('active', true)
           .single();
       _schoolName = university['name'] as String;
+      _schoolShortName = university['short_name'] as String? ?? '';
       // Validate that the profile's campus belongs to its assigned university.
       await _db
           .from('campuses')

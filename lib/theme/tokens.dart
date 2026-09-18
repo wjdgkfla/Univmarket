@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 /// Design tokens mirroring the confirmed "Variant C: Bento" web prototype —
 /// cool graphite neutrals, single coral accent, ambient gradient glow.
-class AppColors {
+class AppColors extends ThemeExtension<AppColors> {
   final Color bg, surface, surface2, ink, inkSoft, inkFaint, line;
   final Color accent, accentDeep, accentInk, accentWash;
   final Color violet, pink;
@@ -73,7 +73,60 @@ class AppColors {
     bad: Color(0xFFF0776C),
     badWash: Color(0xFF3A1A17),
   );
+
+  @override
+  AppColors copyWith({Color? accent, Color? accentDeep, Color? accentWash}) =>
+      AppColors(
+        bg: bg,
+        surface: surface,
+        surface2: surface2,
+        ink: ink,
+        inkSoft: inkSoft,
+        inkFaint: inkFaint,
+        line: line,
+        accent: accent ?? this.accent,
+        accentDeep: accentDeep ?? this.accentDeep,
+        accentInk: accentInk,
+        accentWash: accentWash ?? this.accentWash,
+        violet: violet,
+        pink: pink,
+        good: good,
+        goodWash: goodWash,
+        warn: warn,
+        warnWash: warnWash,
+        bad: bad,
+        badWash: badWash,
+      );
+
+  // ponytail: snaps instead of tweening; themes only change at sign-in.
+  @override
+  AppColors lerp(AppColors? other, double t) =>
+      t < 0.5 || other == null ? this : other;
 }
+
+/// Launch school brand colors, keyed by `universities.short_name`.
+/// [second] is the school's secondary color, used for selection highlights.
+typedef SchoolColors = ({
+  Color accent,
+  Color accentDeep,
+  Color accentWash,
+  Color second,
+});
+
+const Map<String, SchoolColors> schoolColors = {
+  'GMU': (
+    accent: Color(0xFF006633),
+    accentDeep: Color(0xFF004D26),
+    accentWash: Color(0xFFE3F1E8),
+    second: Color(0xFFFFCC33),
+  ),
+  'GWU': (
+    accent: Color(0xFF033C5A),
+    accentDeep: Color(0xFF022B41),
+    accentWash: Color(0xFFE1EAF0),
+    second: Color(0xFFAA9868),
+  ),
+};
 
 class AppRadius {
   static const card = 20.0;
@@ -94,7 +147,9 @@ const Map<String, List<Color>> categoryMesh = {
 };
 
 extension AppColorsOf on BuildContext {
-  AppColors get colors => Theme.of(this).brightness == Brightness.dark
-      ? AppColors.dark
-      : AppColors.light;
+  AppColors get colors =>
+      Theme.of(this).extension<AppColors>() ??
+      (Theme.of(this).brightness == Brightness.dark
+          ? AppColors.dark
+          : AppColors.light);
 }

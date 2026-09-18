@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:univmarket_app/app.dart';
 import 'package:univmarket_app/data/demo_repository.dart';
+import 'package:univmarket_app/theme/tokens.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +16,11 @@ void main() {
     final repo = await DemoRepository.open();
     await tester.pumpWidget(UnivMarketApp(repository: repo));
     await tester.pumpAndSettle();
-    expect(find.text('UnivMarket'), findsOneWidget);
+    expect(find.text('GMUMarket'), findsOneWidget);
+    expect(find.text('George Mason University'), findsOneWidget);
+    expect(find.byType(DropdownButton<String>), findsNothing);
+    final theme = Theme.of(tester.element(find.text('GMUMarket')));
+    expect(theme.extension<AppColors>()!.accent, const Color(0xFF006633));
     expect(find.textContaining('LOCAL DEMO'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Search').last);

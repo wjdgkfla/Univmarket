@@ -79,7 +79,11 @@ void main() {
               'home_campus_id': 'campus-b',
             };
           } else if (path.endsWith('/universities')) {
-            result = {'id': 'school-b', 'name': 'Second University'};
+            result = {
+              'id': 'school-b',
+              'name': 'Second University',
+              'short_name': 'GWU',
+            };
           } else if (path.endsWith('/campuses')) {
             result = {'id': 'campus-b', 'university_id': 'school-b'};
           } else if (path.endsWith('/pickup_zones')) {
@@ -120,6 +124,7 @@ void main() {
       await repo.initialized;
       expect(repo.bootstrapError, isNull);
       expect(repo.me.school, 'Second University');
+      expect(repo.schoolShortName, 'GWU');
       expect(repo.universityId, 'school-b');
       expect(repo.pickupZones, ['Campus B library']);
       final uniRequest = requests.singleWhere(
