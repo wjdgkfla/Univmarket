@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
+import 'listing_photo.dart';
+import 'listing_photo_storage.dart';
 import 'supabase_client.dart';
 
 const _categoryIcon = {
@@ -76,7 +78,23 @@ const categories = [
 ];
 
 class Repository extends ChangeNotifier {
-  Repository.offline();
+  Repository.offline() : client = null {
+    initialized = Future.value();
+  }
+  final SupabaseClient? client;
+  late final Future<void> initialized;
+  bool _disposed = false;
+  @override
+  void notifyListeners() {
+    if (!_disposed) super.notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   bool get isDemo => false;
   String get universityId => _universityId ?? '';
   Map<String, String> get universities => {_universityId ?? '': me.school};
@@ -84,18 +102,98 @@ class Repository extends ChangeNotifier {
   Future<void> selectUniversity(String id) async => throw UnsupportedError(
     'University membership is not configured on this backend.',
   );
-  Future<void> markSold(String id) async => throw UnsupportedError(
-    'Listing management is not configured on this backend.',
-  );
-  Future<void> sendOffer(String conversationId, int amount) async =>
-      throw UnsupportedError(
-        'Offer creation is not configured on this backend.',
-      );
-  Repository() {
-    _bootstrap();
+  void _requireConfirmedAccount() {
+    final user = _db.auth.currentUser;
+    if (!ready ||
+        bootstrapError != null ||
+        user == null ||
+        user.id != _me.id ||
+        user.isAnonymous ||
+        user.emailConfirmedAt == null) {
+      throw StateError('Sign in with your confirmed university account.');
+    }
   }
 
-  SupabaseClient get _db => supabase;
+  Future<void> markSold(String id) async {
+    _requireConfirmedAccount();
+    final listing = getListing(id);
+    if (listing == null ||
+        listing.sellerId != _me.id ||
+        listing.universityId != _universityId ||
+        listing.status != 'available') {
+      throw StateError('Only your available listings can be marked sold.');
+    }
+    final row = await _db
+        .from('listings')
+        .update({'status': 'sold'})
+        .eq('id', id)
+        .eq('seller_id', _me.id)
+        .eq('university_id', _universityId!)
+        .eq('status', 'available')
+        .isFilter('deleted_at', null)
+        .select()
+        .single();
+    final saved = await _listingFromRow(row);
+    final index = _listings.indexWhere((item) => item.id == id);
+    if (index >= 0) _listings[index] = saved;
+    notifyListeners();
+  }
+
+  Future<void> sendOffer(String conversationId, int amount) async {
+    _requireConfirmedAccount();
+    if (amount < 1 || amount > 100000) {
+      throw ArgumentError('Enter an offer between 1 and 100000.');
+    }
+    final thread = getConversation(conversationId);
+    final listing = thread == null ? null : getListing(thread.listingId);
+    if (thread == null ||
+        listing == null ||
+        listing.status != 'available' ||
+        listing.universityId != _universityId ||
+        listing.sellerId == _me.id ||
+        thread.sellerId != listing.sellerId) {
+      throw StateError('This listing is not available for an offer.');
+    }
+    final id =
+        await _db.rpc(
+              'send_offer',
+              params: {
+                'p_conversation_id': conversationId,
+                'p_kind': 'cash',
+                'p_cash_amount': amount,
+                'p_offered_listing_ids': <String>[],
+              },
+            )
+            as String;
+    // A confirmed RPC is a successful send. Do not turn a subsequent read
+    // failure into a retry that submits a duplicate offer.
+    final current = getConversation(conversationId);
+    if (current != null &&
+        !current.messages.any((message) => message.id == id)) {
+      final index = _conversations.indexWhere(
+        (item) => item.id == conversationId,
+      );
+      _conversations[index] = current.copyWith(
+        messages: [
+          ...current.messages,
+          OfferMessage(
+            id,
+            MessageFrom.me,
+            amount,
+            listing.id,
+            OfferStatus.pending,
+          ),
+        ],
+      );
+      notifyListeners();
+    }
+  }
+
+  Repository({this.client}) {
+    initialized = _bootstrap();
+  }
+
+  SupabaseClient get _db => client ?? supabase;
 
   /// True once the initial auth + data bootstrap has finished (success or
   /// failure). Screens don't currently gate on this directly — main.dart's
@@ -107,7 +205,7 @@ class Repository extends ChangeNotifier {
     id: '',
     name: '',
     initials: '?',
-    school: 'Fenwick University',
+    school: '',
     rating: 0,
     dealsDone: 0,
     meetupsKeptPct: 100,
@@ -121,6 +219,7 @@ class Repository extends ChangeNotifier {
   Map<String, String> _zoneNames = {}; // pickup_zone_id -> display name
   String? _universityId;
   String? _campusId;
+  String _schoolName = '';
 
   Profile get me => _me;
   Set<String> get favorites => Set.unmodifiable(_favorites);
@@ -147,6 +246,11 @@ class Repository extends ChangeNotifier {
 
   List<Conversation> listConversations() => List.unmodifiable(_conversations);
 
+  List<Stream<Object?>> conversationChanges(String id) => [
+    _db.from('messages').stream(primaryKey: ['id']).eq('conversation_id', id),
+    _db.from('offers').stream(primaryKey: ['id']).eq('conversation_id', id),
+  ];
+
   Conversation? getConversation(String id) {
     for (final c in _conversations) {
       if (c.id == id) return c;
@@ -157,32 +261,46 @@ class Repository extends ChangeNotifier {
   Future<void> _bootstrap() async {
     try {
       final auth = _db.auth;
-      if (auth.currentSession == null) {
-        await auth.signInAnonymously();
+      final user = auth.currentUser;
+      if (user == null || user.isAnonymous || user.emailConfirmedAt == null) {
+        throw StateError('A confirmed email account is required.');
       }
       final profileRow =
           await _db.rpc('ensure_profile') as Map<String, dynamic>;
-      _me = _profileFromRow(profileRow);
-      _profiles[_me.id] = _me;
-
-      final zoneRows = await _db.from('pickup_zones').select('id, name');
-      _zoneNames = {
-        for (final z in zoneRows) z['id'] as String: z['name'] as String,
-      };
-
-      final uniRow = await _db
+      _universityId = profileRow['university_id'] as String?;
+      _campusId = profileRow['home_campus_id'] as String?;
+      if (_universityId == null || _campusId == null) {
+        throw StateError(
+          'Your university and campus must be assigned before entering the marketplace.',
+        );
+      }
+      final university = await _db
           .from('universities')
-          .select('id')
-          .eq('slug', 'fenwick')
+          .select('id, name')
+          .eq('id', _universityId!)
+          .eq('active', true)
           .single();
-      _universityId = uniRow['id'] as String;
-      final campusRow = await _db
+      _schoolName = university['name'] as String;
+      // Validate that the profile's campus belongs to its assigned university.
+      await _db
           .from('campuses')
           .select('id')
-          .eq('slug', 'main')
+          .eq('id', _campusId!)
+          .eq('university_id', _universityId!)
+          .eq('active', true)
           .single();
-      _campusId = campusRow['id'] as String;
-
+      _me = _profileFromRow(profileRow);
+      _profiles[_me.id] = _me;
+      final zoneRows = await _db
+          .from('pickup_zones')
+          .select('id, name')
+          .eq('campus_id', _campusId!)
+          .eq('active', true)
+          .order('name');
+      _zoneNames = {
+        for (final zone in zoneRows)
+          zone['id'] as String: zone['name'] as String,
+      };
       await Future.wait([
         _refreshListings(),
         _refreshConversations(),
@@ -203,8 +321,7 @@ class Repository extends ChangeNotifier {
       id: row['id'] as String,
       name: name,
       initials: _initialsFor(name),
-      // Single-university demo — revisit if multi-university ever ships.
-      school: 'Fenwick University',
+      school: _schoolName,
       rating: ((row['reputation_score'] as num?) ?? 5).toDouble(),
       dealsDone: (row['completed_transaction_count'] as int?) ?? 0,
       // Not tracked by the schema yet.
@@ -229,29 +346,51 @@ class Repository extends ChangeNotifier {
     }
   }
 
+  Future<void> refreshMarketplace() async {
+    if (isDemo) return;
+    _requireConfirmedAccount();
+    await _refreshListings();
+    notifyListeners();
+  }
+
   Future<void> _refreshListings() async {
     final rows = await _db
         .from('listings')
         .select()
-        .eq('status', 'available')
+        .eq('university_id', _universityId!)
+        .or('status.eq.available,seller_id.eq.${_me.id}')
         .eq('moderation_state', 'visible')
         .isFilter('deleted_at', null)
         .order('created_at', ascending: false);
-    _listings = [for (final r in rows) _listingFromRow(r)];
+    _listings = await Future.wait([for (final r in rows) _listingFromRow(r)]);
   }
 
-  Listing _listingFromRow(Map<String, dynamic> r) => Listing(
-    id: r['id'] as String,
-    icon: _iconForCategory(r['category'] as String),
-    title: r['title'] as String,
-    price: (r['price'] as num).round(),
-    condition: _conditionFromDb(r['condition'] as String),
-    zone: _zoneNames[r['pickup_zone_id']] ?? '',
-    tag: r['category'] as String,
-    trades: r['accepts_trades'] as bool? ?? false,
-    description: (r['description'] as String?) ?? '',
-    sellerId: r['seller_id'] as String,
-  );
+  Future<Listing> _listingFromRow(Map<String, dynamic> r) async {
+    var image = r['cover_image_url'] as String?;
+    if (image != null && !image.startsWith('https://')) {
+      try {
+        image = await ListingPhotoStorage(_db).resolve(image);
+      } catch (_) {
+        // A photo outage must not turn a successful listing write into failure.
+        image = null;
+      }
+    }
+    return Listing(
+      id: r['id'] as String,
+      icon: _iconForCategory(r['category'] as String),
+      title: r['title'] as String,
+      price: (r['price'] as num).round(),
+      condition: _conditionFromDb(r['condition'] as String),
+      zone: _zoneNames[r['pickup_zone_id']] ?? '',
+      tag: r['category'] as String,
+      trades: r['accepts_trades'] as bool? ?? false,
+      description: (r['description'] as String?) ?? '',
+      sellerId: r['seller_id'] as String,
+      universityId: r['university_id'] as String,
+      status: r['status'] as String? ?? 'available',
+      imageSource: image,
+    );
+  }
 
   Future<void> _refreshFavorites() async {
     final rows = await _db
@@ -419,9 +558,8 @@ class Repository extends ChangeNotifier {
     await refreshConversation(conversationId);
   }
 
-  /// Sell screen doesn't collect real form input yet (fields are static
-  /// display text, a known pre-existing gap) — this posts whatever's
-  /// currently shown on screen as the listing.
+  /// Persist editable fields and cache only the row confirmed by the server.
+  /// Backend RLS must independently enforce ownership and campus membership.
   Future<void> createListing({
     required String title,
     required int price,
@@ -433,30 +571,96 @@ class Repository extends ChangeNotifier {
     String? imageSource,
     String? editingId,
   }) async {
-    if (editingId != null || imageSource != null) {
-      throw UnsupportedError(
-        'Photo uploads and editing require a configured live adapter.',
+    final user = _db.auth.currentUser;
+    if (!ready ||
+        bootstrapError != null ||
+        user == null ||
+        user.id != _me.id ||
+        user.isAnonymous ||
+        user.emailConfirmedAt == null) {
+      throw StateError(
+        'Sign in with a confirmed university account before posting.',
       );
     }
-    final zoneId = _zoneNames.entries
-        .firstWhere(
-          (e) => e.value == pickupZoneName,
-          orElse: () => _zoneNames.entries.first,
-        )
-        .key;
-    await _db.from('listings').insert({
-      'seller_id': _me.id,
-      'university_id': _universityId,
-      'campus_id': _campusId,
-      'pickup_zone_id': zoneId,
-      'title': title,
-      'description': description,
+    final cleanTitle = title.trim();
+    final cleanDescription = description.trim();
+    if (cleanTitle.length < 3 || cleanTitle.length > 100) {
+      throw ArgumentError('Use a title between 3 and 100 characters.');
+    }
+    if (cleanDescription.length < 10 || cleanDescription.length > 2000) {
+      throw ArgumentError('Use a description between 10 and 2000 characters.');
+    }
+    if (price < 0 || price > 100000) {
+      throw ArgumentError('Enter a whole-dollar price from 0 to 100000.');
+    }
+    if (!categories.contains(category)) {
+      throw ArgumentError('Choose a valid category.');
+    }
+    final zones = _zoneNames.entries
+        .where((e) => e.value == pickupZoneName)
+        .toList();
+    if (zones.length != 1) {
+      throw ArgumentError(
+        'Choose an available pickup location on your campus.',
+      );
+    }
+    final existing = editingId == null ? null : getListing(editingId);
+    if (editingId != null &&
+        (existing == null ||
+            existing.sellerId != _me.id ||
+            existing.universityId != _universityId ||
+            existing.status != 'available')) {
+      throw StateError('Only your available listings can be edited.');
+    }
+    String? uploadedPath;
+    if (imageSource != null && imageSource != existing?.imageSource) {
+      final photo = ListingPhoto.fromDataUri(imageSource);
+      uploadedPath = await ListingPhotoStorage(
+        _db,
+      ).upload(universityId: _universityId!, photo: photo);
+    }
+    final fields = <String, dynamic>{
+      'cover_image_url': ?uploadedPath,
+      if (uploadedPath != null) 'image_urls': [uploadedPath],
+      'pickup_zone_id': zones.single.key,
+      'title': cleanTitle,
+      'description': cleanDescription,
       'price': price,
       'category': category,
       'condition': _conditionToDb(condition),
       'accepts_trades': acceptsTrades,
-    });
-    await _refreshListings();
+    };
+    final Map<String, dynamic> row;
+    if (editingId == null) {
+      row = await _db
+          .from('listings')
+          .insert({
+            ...fields,
+            'seller_id': _me.id,
+            'university_id': _universityId,
+            'campus_id': _campusId,
+          })
+          .select()
+          .single();
+    } else {
+      row = await _db
+          .from('listings')
+          .update(fields)
+          .eq('id', editingId)
+          .eq('seller_id', _me.id)
+          .eq('university_id', _universityId!)
+          .eq('status', 'available')
+          .isFilter('deleted_at', null)
+          .select()
+          .single();
+    }
+    final saved = await _listingFromRow(row);
+    final index = _listings.indexWhere((listing) => listing.id == saved.id);
+    if (index < 0) {
+      _listings.insert(0, saved);
+    } else {
+      _listings[index] = saved;
+    }
     notifyListeners();
   }
 }

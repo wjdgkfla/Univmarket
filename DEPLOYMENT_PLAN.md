@@ -48,7 +48,7 @@ flutter build apk --debug
 flutter run -d DEVICE_ID
 ```
 
-Test the full flow on a physical phone, including photo library permissions, background/resume, keyboard layouts, local persistence, and later the two-account live backend. Configure the final application ID and release signing before creating an app bundle. The existing Android release configuration uses debug signing and must be replaced before store submission.
+Test the full flow on a physical phone, including photo library permissions, background/resume, keyboard layouts, local persistence, and later the two-account live backend. Configure the final application ID and release signing before creating an app bundle. Android release configuration now reads ignored android/key.properties and has no debug-signing fallback. Supply and validate the owner upload keystore before store submission; the native build is not yet verified.
 
 ### iOS
 

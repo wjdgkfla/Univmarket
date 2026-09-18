@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
-import '../data/supabase_client.dart';
+import '../data/conversation_sync.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
 import '../widgets/pill.dart';
@@ -21,34 +21,37 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final draftController = TextEditingController();
-  StreamSubscription<List<Map<String, dynamic>>>? _messagesSub;
-  StreamSubscription<List<Map<String, dynamic>>>? _offersSub;
+  ConversationSync? _sync;
 
   @override
   void initState() {
     super.initState();
-    if (context.read<Repository>().isDemo) return;
-    // Live-update this conversation: new messages and offer status changes
-    // (accept/decline from the other party) trigger a re-fetch rather than
-    // waiting for the next full refresh.
-    void refresh(_) =>
-        context.read<Repository>().refreshConversation(widget.id);
-    _messagesSub = supabase
-        .from('messages')
-        .stream(primaryKey: ['id'])
-        .eq('conversation_id', widget.id)
-        .listen(refresh);
-    _offersSub = supabase
-        .from('offers')
-        .stream(primaryKey: ['id'])
-        .eq('conversation_id', widget.id)
-        .listen(refresh);
+    final repo = context.read<Repository>();
+    if (repo.isDemo) return;
+    _sync = ConversationSync(
+      changes: repo.conversationChanges(widget.id),
+      load: () => repo.refreshConversation(widget.id),
+    )..addListener(_syncChanged);
+    unawaited(_sync!.refresh());
   }
+
+  void _syncChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Widget _retryBanner() => MaterialBanner(
+    content: const Text(
+      'Chat updates are unavailable. Check your connection and retry.',
+    ),
+    actions: [
+      TextButton(onPressed: () => _sync?.refresh(), child: const Text('Retry')),
+    ],
+  );
 
   @override
   void dispose() {
-    _messagesSub?.cancel();
-    _offersSub?.cancel();
+    _sync?.removeListener(_syncChanged);
+    _sync?.dispose();
     draftController.dispose();
     super.dispose();
   }
@@ -59,9 +62,11 @@ class _ChatScreenState extends State<ChatScreen> {
     final repo = context.watch<Repository>();
     final conversation = repo.getConversation(widget.id);
     if (conversation == null) {
-      return const Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SizedBox(),
+      return Scaffold(
+        appBar: AppBar(title: const Text('Conversation')),
+        body: _sync?.failed == true
+            ? _retryBanner()
+            : const Center(child: CircularProgressIndicator()),
       );
     }
     final seller = repo.getSeller(conversation.sellerId);
@@ -72,6 +77,7 @@ class _ChatScreenState extends State<ChatScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            if (_sync?.failed == true) _retryBanner(),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(

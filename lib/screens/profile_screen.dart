@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../data/repository.dart';
+import '../data/supabase_client.dart';
+import '../widgets/async_action.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/listing_row.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -46,6 +49,14 @@ class ProfileScreen extends StatelessWidget {
                   'You are exploring a local demo. Your listings, saved items, and messages stay on this device. University verification and real trading are not enabled.',
                 ),
               ),
+            ),
+          if (!repo.isDemo)
+            TextButton(
+              onPressed: () => runAction(
+                context,
+                () => supabase.auth.signOut(scope: SignOutScope.local),
+              ),
+              child: const Text('Sign out'),
             ),
           const SizedBox(height: 24),
           Row(

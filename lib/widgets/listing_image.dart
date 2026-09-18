@@ -31,6 +31,12 @@ class ListingImage extends StatelessWidget {
       } catch (_) {
         photo = fallback();
       }
+    } else if (Uri.tryParse(source)?.scheme == 'https') {
+      photo = Image.network(
+        source,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => fallback(),
+      );
     } else {
       photo = Image.asset(
         source,
