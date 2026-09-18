@@ -24,8 +24,8 @@ New profiles use the configured main campus, or the sole active campus.
 The launch configuration adds George Mason University (gmu.edu, Fairfax) and
 George Washington University (gwu.edu, Foggy Bottom). Subdomains and lookalike
 domains are not implicitly approved. No user accounts, passwords, or sample
-listings are included. The subsequent pickup migration adds only Fenwick Library
-to GMU's Fairfax campus. GWU pickup locations and other GMU locations are deferred.
+listings are included. Pickup migrations configure Fenwick Library and Johnson
+Center on GMU's Fairfax campus, and Gelman Library on GWU's Foggy Bottom campus.
 The legacy Fenwick university entry is not removed or deactivated.
 
 Fenwick Library is a real location within GMU, not a separate university:
@@ -33,6 +33,10 @@ https://library.gmu.edu/locations/fenwick
 Its pickup entry is attached to George Mason's campus and does not convert
 legacy Fenwick profiles or the fenwick.edu domain into verified GMU memberships.
 No university endorsement, fixed meeting room, or opening hours are assumed.
+
+Additional location references:
+- Johnson Center: https://studentcenters.gmu.edu/the-johnson-center/
+- Gelman Library: https://calendar.gwu.edu/gelman_library
 
 Chat and offer RPCs check participants, current membership, university boundaries,
 blocking and listing visibility. Acceptance rechecks expiry and availability,
@@ -64,8 +68,8 @@ Before live rollout:
   not an instruction to modify or delete accounts.
 - Preserve legacy accounts and data; resolve verified enrollment separately before
   rollout. The user has not authorized retiring the legacy Fenwick entry.
-- Fenwick Library is the initial GMU pickup location. Add other locations later;
-  GWU listing creation still needs a GWU pickup location.
+- The initial pickup choices are Fenwick Library and Johnson Center for GMU,
+  and Gelman Library for GWU. Further locations can be added later.
 - Review hosted schema drift, Storage policies, SMTP/email-confirmation settings,
   leaked-password protection and outstanding advisor findings separately.
 - Take a recoverable backup and apply only reviewed pending migrations in order.
