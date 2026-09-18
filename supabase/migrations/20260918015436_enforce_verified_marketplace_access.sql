@@ -241,6 +241,8 @@ language plpgsql security definer set search_path = '' as $$
 begin
   update public.listings set view_count=view_count+1 where id=p_listing_id
     and university_id=app_private.member_university(auth.uid()::text)
+    and app_private.member_university(seller_id)=university_id
+    and not app_private.blocked(auth.uid()::text,seller_id)
     and moderation_state='visible' and deleted_at is null;
   if not found then raise exception 'Listing unavailable' using errcode='42501'; end if;
 end $$;

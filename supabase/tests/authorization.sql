@@ -77,12 +77,12 @@ select pg_temp.probe('cross university conversation denied',$q$select start_conv
 select pg_temp.probe('foreign view increment denied',$q$select increment_view_count('foreign')$q$,'42501');
 select pg_temp.probe('valid cash offer succeeds',$q$select send_offer('chat','cash',10,'{}')$q$,'allowed');
 select pg_temp.probe('valid trade offer reserves both listings atomically',
-$q$do $b$ declare offer_id text; begin
- offer_id:=send_offer('chat','trade',0,array['trade']);
+$q$do $b$ declare new_offer_id text; begin
+ new_offer_id:=send_offer('chat','trade',0,array['trade']);
  perform set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000002',true);
- perform respond_to_offer(offer_id,'accept');
+ perform respond_to_offer(new_offer_id,'accept');
  if (select count(*) from listings where id in ('target','trade') and status='reserved')<>2
- or (select count(*) from transaction_listings tl join transactions t on t.id=tl.transaction_id where t.offer_id=offer_id and tl.is_active)<>2 then
+ or (select count(*) from transaction_listings tl join transactions t on t.id=tl.transaction_id where t.offer_id=new_offer_id and tl.is_active)<>2 then
  raise exception 'Trade did not reserve both listings'; end if;
 end $b$;$q$,'allowed');
 select pg_temp.probe('own available listing can be marked sold',
