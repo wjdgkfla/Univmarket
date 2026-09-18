@@ -74,7 +74,7 @@ The offline suite covers local persistence, campus isolation, listing validation
 
 UnivMarket uses a dedicated Supabase project. Its publishable client configuration is in [`supabase.dev.json`](config/supabase.dev.json).
 
-The standard app starts in demo mode. Live mode requires an email account and supports password recovery. Pending database migrations enforce confirmed university-email membership and harden listing, chat, and offer authorization. The staged launch schools are George Mason (gmu.edu, Fairfax) and George Washington (gwu.edu, Foggy Bottom). These changes are not yet deployed to the hosted project, whose profile function still assigns the Fenwick seed. See [database rollout notes](supabase/README.md); live photo uploads, pickup locations, remaining write flows, and end-to-end release checks still need review before public launch.
+The standard app starts in demo mode. Live mode requires an email account and supports password recovery. Pending database migrations enforce confirmed university-email membership and harden listing, chat, and offer authorization. The staged launch schools are George Mason (gmu.edu, Fairfax) and George Washington (gwu.edu, Foggy Bottom), with Fenwick Library as the initial GMU pickup location; other locations are deferred. These changes are not yet deployed to the hosted project, whose profile function still assigns the Fenwick seed. See [database rollout notes](supabase/README.md); live photo uploads, GWU pickup locations, remaining write flows, and end-to-end release checks still need review before public launch.
 
 Read the [backend connection notes](BACKEND_CONNECTION.md) before enabling live mode. Never place service-role credentials or private signing keys in client configuration.
 

@@ -23,9 +23,16 @@ New profiles use the configured main campus, or the sole active campus.
 
 The launch configuration adds George Mason University (gmu.edu, Fairfax) and
 George Washington University (gwu.edu, Foggy Bottom). Subdomains and lookalike
-domains are not implicitly approved. No pickup zones, user accounts, passwords,
-or sample listings are included. The legacy Fenwick entry is not removed or
-deactivated by these migrations; review its retirement before public launch.
+domains are not implicitly approved. No user accounts, passwords, or sample
+listings are included. The subsequent pickup migration adds only Fenwick Library
+to GMU's Fairfax campus. GWU pickup locations and other GMU locations are deferred.
+The legacy Fenwick university entry is not removed or deactivated.
+
+Fenwick Library is a real location within GMU, not a separate university:
+https://library.gmu.edu/locations/fenwick
+Its pickup entry is attached to George Mason's campus and does not convert
+legacy Fenwick profiles or the fenwick.edu domain into verified GMU memberships.
+No university endorsement, fixed meeting room, or opening hours are assumed.
 
 Chat and offer RPCs check participants, current membership, university boundaries,
 blocking and listing visibility. Acceptance rechecks expiry and availability,
@@ -55,8 +62,10 @@ Before live rollout:
 - Review existing memberships: the preflight found 8 profiles, only 2 of which
   matched a confirmed approved-domain email. This is a point-in-time count,
   not an instruction to modify or delete accounts.
-- Confirm the intended handling of legacy/demo accounts and the Fenwick domain.
-- Configure real pickup zones before enabling listing creation at either campus.
+- Preserve legacy accounts and data; resolve verified enrollment separately before
+  rollout. The user has not authorized retiring the legacy Fenwick entry.
+- Fenwick Library is the initial GMU pickup location. Add other locations later;
+  GWU listing creation still needs a GWU pickup location.
 - Review hosted schema drift, Storage policies, SMTP/email-confirmation settings,
   leaked-password protection and outstanding advisor findings separately.
 - Take a recoverable backup and apply only reviewed pending migrations in order.
