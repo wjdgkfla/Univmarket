@@ -119,6 +119,9 @@ set local role authenticated;
 select pg_temp.probe('blocked acceptance denied',$q$select respond_to_offer('offer','accept')$q$,'42501');
 select pg_temp.probe('blocked message denied',$q$select create_message('chat','Hello')$q$,'42501');
 select pg_temp.probe('blocked offer denied',$q$select send_offer('chat','cash',10,'{}')$q$,'42501');
+set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
+select pg_temp.probe('blocked listing counter write denied',$q$select increment_view_count('target')$q$,'42501');
+set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000002';
 reset role;
 delete from blocks;
 update profiles set account_state='suspended' where id='20000000-0000-0000-0000-000000000002';
@@ -127,6 +130,7 @@ select pg_temp.probe('suspended recipient cannot accept',$q$select respond_to_of
 
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 select pg_temp.probe('cannot message suspended counterparty',$q$select create_message('chat','Hello')$q$,'42501');
+select pg_temp.probe('suspended seller counter write denied',$q$select increment_view_count('target')$q$,'42501');
 reset role;
 update profiles set account_state='active' where id='20000000-0000-0000-0000-000000000002';
 update offers set expires_at=now()-interval '1 hour' where id='offer';
