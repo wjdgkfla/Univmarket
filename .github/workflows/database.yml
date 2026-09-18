@@ -1,0 +1,35 @@
+name: Database rebuild and security tests
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths: ['supabase/**', '.github/workflows/database.yml']
+  pull_request:
+    paths: ['supabase/**', '.github/workflows/database.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: database-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Start isolated database
+        run: npx --yes supabase@2.117.0 db start
+      - name: Replay all migrations from empty
+        run: npx --yes supabase@2.117.0 db reset --local
+      - name: Test client privileges and row isolation
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for test in supabase/tests/*.sql; do
+            psql -h 127.0.0.1 -p 54322 -U postgres -d postgres -v ON_ERROR_STOP=1 -f "$test"
+          done
+      - name: Stop isolated database
+        if: always()
+        run: npx --yes supabase@2.117.0 stop --no-backup

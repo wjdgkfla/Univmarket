@@ -1,0 +1,4 @@
+-- Historical version retained to match the hosted migration ledger.
+-- Original demo users, shared passwords and sample marketplace records are
+-- intentionally excluded from fresh environments. No production rows change.
+-- Use isolated test fixtures instead. See ../README.md.
