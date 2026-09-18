@@ -36,19 +36,32 @@ GoRouter buildRouter() => GoRouter(
         ],
       ),
       routes: [
-        GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+        // Tabs swap instantly: a push-style transition would leave the
+        // previous tab on screen underneath the incoming one.
+        GoRoute(
+          path: '/',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: HomeScreen()),
+        ),
         GoRoute(
           path: '/search',
-          builder: (context, state) => const SearchScreen(),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: SearchScreen()),
         ),
-        GoRoute(path: '/sell', builder: (context, state) => const SellScreen()),
+        GoRoute(
+          path: '/sell',
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: SellScreen()),
+        ),
         GoRoute(
           path: '/saved',
-          builder: (context, state) => const SavedScreen(),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: SavedScreen()),
         ),
         GoRoute(
           path: '/inbox',
-          builder: (context, state) => const InboxScreen(),
+          pageBuilder: (context, state) =>
+              const NoTransitionPage(child: InboxScreen()),
         ),
       ],
     ),
@@ -68,6 +81,10 @@ GoRouter buildRouter() => GoRouter(
   ],
 );
 
+/// "GMUMarket", "GWUMarket", or the neutral brand before a school is known.
+String marketName(String shortName) =>
+    shortName.isEmpty ? 'UnivMarket' : '${shortName}Market';
+
 class UnivMarketApp extends StatelessWidget {
   UnivMarketApp({super.key, Repository? repository})
     : repository = repository ?? Repository();
@@ -77,15 +94,27 @@ class UnivMarketApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final school = schoolColors[repository.schoolShortName];
+    final colors = school == null
+        ? AppColors.light
+        : AppColors.light.copyWith(
+            accent: school.accent,
+            accentDeep: school.accentDeep,
+            accentWash: school.accentWash,
+          );
     return ChangeNotifierProvider.value(
       value: repository,
       child: MaterialApp.router(
-        title: 'UnivMarket',
+        title: marketName(repository.schoolShortName),
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           brightness: Brightness.light,
-          colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFFBD431D)),
-          scaffoldBackgroundColor: AppColors.light.bg,
+          colorScheme: ColorScheme.fromSeed(seedColor: colors.accent).copyWith(
+            secondaryContainer: school?.second,
+            onSecondaryContainer: school == null ? null : colors.ink,
+          ),
+          scaffoldBackgroundColor: colors.bg,
+          extensions: [colors],
           useMaterial3: true,
         ),
         darkTheme: ThemeData(

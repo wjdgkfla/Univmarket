@@ -34,7 +34,7 @@ void main() {
     expect(auth.email, isNull);
     await tester.enterText(
       find.byKey(const Key('auth-email')),
-      ' Student@School.edu ',
+      ' Student@GMU.edu ',
     );
     await tester.enterText(
       find.byKey(const Key('auth-password')),
@@ -42,8 +42,36 @@ void main() {
     );
     await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
-    expect(auth.email, 'student@school.edu');
+    expect(auth.email, 'student@gmu.edu');
     expect(auth.password, 'password1234');
+  });
+
+  testWidgets('only launch school emails can sign in or sign up', (
+    tester,
+  ) async {
+    final auth = FakeAuth();
+    await tester.pumpWidget(MaterialApp(home: AuthScreen(auth: auth)));
+    for (final email in ['student@umd.edu', 'student@mail.gmu.edu']) {
+      await tester.enterText(find.byKey(const Key('auth-email')), email);
+      await tester.enterText(
+        find.byKey(const Key('auth-password')),
+        'password1234',
+      );
+      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      await tester.pump();
+      expect(find.text('Use your @gmu.edu or @gwu.edu email.'), findsOneWidget);
+    }
+    await tester.tap(find.text('Create an account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
+    await tester.pump();
+    expect(auth.email, isNull);
+    expect(auth.registered, isFalse);
+
+    await tester.enterText(find.byKey(const Key('auth-email')), 'a@gwu.edu');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
+    await tester.pumpAndSettle();
+    expect(auth.email, 'a@gwu.edu');
   });
 
   testWidgets(
@@ -53,7 +81,7 @@ void main() {
       await tester.pumpWidget(MaterialApp(home: AuthScreen(auth: auth)));
       await tester.enterText(
         find.byKey(const Key('auth-email')),
-        'student@school.edu',
+        'student@gmu.edu',
       );
       await tester.enterText(
         find.byKey(const Key('auth-password')),

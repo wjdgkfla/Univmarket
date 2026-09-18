@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../app.dart';
 import '../data/repository.dart';
 import '../theme/tokens.dart';
 import '../widgets/listing_tile.dart';
@@ -37,10 +38,10 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Icon(Icons.school_outlined, color: c.accent, size: 28),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'UnivMarket',
-                    style: TextStyle(
+                    marketName(repo.schoolShortName),
+                    style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -1,
@@ -54,35 +55,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            DropdownButton<String>(
-              value: repo.universityId,
-              isExpanded: true,
-              underline: const SizedBox(),
-              items: repo.universities.entries
-                  .map(
-                    (e) => DropdownMenuItem(
-                      value: e.key,
-                      child: Text(
-                        e.value,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (id) async {
-                if (id == null) return;
-                try {
-                  await repo.selectUniversity(id);
-                } catch (_) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Could not change university.'),
-                      ),
-                    );
-                  }
-                }
-              },
+            // Fixed by the account's email domain; there is no market switcher.
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                repo.me.school,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
             if (repo.isDemo)
               Container(

@@ -2,13 +2,13 @@
 
 A university marketplace for buying and selling within campus communities. Inspired by Mason Market, UnivMarket is being built for multiple universities with a shared Flutter app for iOS and Android.
 
-**Status: working local demo · live backend integration in progress**
+**Status: live backend · staged launch at GMU and GWU**
 
 The browser preview runs the shared Flutter interface. Listings, favorites, photos, messages, and offers currently persist on the local device; they are not shared between users.
 
 ## What you can try
 
-- **Campus feeds** — separate sample marketplaces for George Mason, Virginia Tech, and the University of Maryland.
+- **Campus markets** — sign in with an @gmu.edu or @gwu.edu email to enter GMUMarket or GWUMarket, each in its school colors. Your market is fixed by your email domain.
 - **Discover** — search listings, filter by price and condition, and sort results.
 - **Save** — keep favorites across app restarts.
 - **Sell** — add a photo, publish a listing, edit it, and mark it sold.
@@ -33,7 +33,7 @@ Use Flutter with Dart 3.12.2 or a compatible version satisfying the app's SDK co
 git clone https://github.com/wjdgkfla/Univmarket.git
 cd Univmarketunivmarket_app
 flutter pub get
-flutter run -d chrome
+flutter run -d chrome --dart-define-from-file=config/supabase.dev.json
 ```
 
 ### Static browser preview
@@ -74,7 +74,7 @@ The offline suite covers local persistence, campus isolation, listing validation
 
 UnivMarket uses a dedicated Supabase project. Its publishable client configuration is in [`supabase.dev.json`](config/supabase.dev.json).
 
-The standard app starts in demo mode. Live mode requires an email account and supports password recovery. Pending database migrations enforce confirmed university-email membership and harden listing, chat, and offer authorization. The staged launch schools are George Mason (gmu.edu, Fairfax) and George Washington (gwu.edu, Foggy Bottom). Pickup choices are Fenwick Library and Johnson Center at GMU, and Gelman Library at GWU. These changes are not yet deployed to the hosted project, whose profile function still assigns the Fenwick seed. See [database rollout notes](supabase/README.md); live photo uploads, remaining write flows, and end-to-end release checks still need review before public launch.
+The app always runs against this backend and opens on the sign-in screen. It requires a university email account and supports password recovery. Pending database migrations enforce confirmed university-email membership and harden listing, chat, and offer authorization. The staged launch schools are George Mason (gmu.edu, Fairfax) and George Washington (gwu.edu, Foggy Bottom). Pickup choices are Fenwick Library and Johnson Center at GMU, and Gelman Library at GWU. These migrations are deployed to the hosted project: accounts are assigned by exact email domain, and the legacy Fenwick seed school is deactivated. See [database rollout notes](supabase/README.md); live photo uploads, remaining write flows, and end-to-end release checks still need review before public launch.
 
 Read the [backend connection notes](BACKEND_CONNECTION.md) before enabling live mode. Never place service-role credentials or private signing keys in client configuration.
 

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-/// Shared scaffold: transparent background (so the app-level AmbientGlow
-/// shows through), safe-area top padding, optional bottom clearance for
-/// the floating pill nav which overlays tab screens.
+/// Shared scaffold: opaque theme background, safe-area top padding,
+/// optional bottom clearance for the floating pill nav which overlays tab
+/// screens.
 class ScreenScaffold extends StatelessWidget {
   final Widget child;
   final bool scroll;
@@ -35,7 +35,6 @@ class ScreenScaffold extends StatelessWidget {
           );
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       body: Padding(
         padding: EdgeInsets.only(top: topInset),
         child: body,

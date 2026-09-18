@@ -3,6 +3,10 @@ import '../auth/auth_service.dart';
 import '../auth/recovery_service.dart';
 import 'password_recovery_screen.dart';
 
+/// Launch schools. Mirrors `university_domains` (exact domain match), which
+/// the server enforces; this only gives an early, clear error.
+const launchEmailDomains = {'gmu.edu', 'gwu.edu'};
+
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key, required this.auth, this.recovery});
   final AuthService auth;
@@ -84,7 +88,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      'Your campus marketplace. Use your university email to get started.',
+                      'Your campus marketplace. Sign in or sign up with your @gmu.edu or @gwu.edu email.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 28),
@@ -98,12 +102,15 @@ class _AuthScreenState extends State<AuthScreen> {
                       decoration: const InputDecoration(
                         labelText: 'University email',
                       ),
-                      validator: (value) =>
-                          RegExp(
-                            r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-                          ).hasMatch((value ?? '').trim())
-                          ? null
-                          : 'Enter a valid email address.',
+                      validator: (value) {
+                        final email = (value ?? '').trim().toLowerCase();
+                        if (!RegExp(r'^[^\s@]+@[^\s@]+$').hasMatch(email)) {
+                          return 'Enter a valid email address.';
+                        }
+                        return launchEmailDomains.contains(email.split('@')[1])
+                            ? null
+                            : 'Use your @gmu.edu or @gwu.edu email.';
+                      },
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
