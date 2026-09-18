@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../data/repository.dart';
 import '../data/supabase_client.dart';
@@ -85,6 +86,17 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 12),
               child: ListingRow(listing: l),
             ),
+          const SizedBox(height: 24),
+          FutureBuilder(
+            future: PackageInfo.fromPlatform(),
+            builder: (context, snapshot) => Text(
+              snapshot.hasData
+                  ? 'Version ${snapshot.data!.version} (${snapshot.data!.buildNumber})'
+                  : '',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         ],
       ),
     );

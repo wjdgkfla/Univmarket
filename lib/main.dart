@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'auth/live_auth_gate.dart';
 import 'data/supabase_client.dart';
+import 'widgets/version_gate.dart';
 
 SemanticsHandle? accessibilityHandle;
 
@@ -19,6 +21,7 @@ class Startup extends StatefulWidget {
 
 class _StartupState extends State<Startup> {
   bool _initialized = false;
+  int? _build;
   String? _error;
   @override
   void initState() {
@@ -30,6 +33,9 @@ class _StartupState extends State<Startup> {
     setState(() => _error = null);
     try {
       await initSupabase();
+      _build = await PackageInfo.fromPlatform()
+          .then((info) => int.tryParse(info.buildNumber))
+          .catchError((Object _) => null);
       if (mounted) setState(() => _initialized = true);
     } catch (_) {
       if (mounted) {
@@ -41,9 +47,28 @@ class _StartupState extends State<Startup> {
     }
   }
 
+  Future<MinimumVersion?> _fetchMinimum() async {
+    final row = await supabase
+        .from('app_config')
+        .select('min_build, update_url')
+        .maybeSingle();
+    return row == null
+        ? null
+        : (
+            minBuild: row['min_build'] as int,
+            updateUrl: row['update_url'] as String?,
+          );
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_initialized) return LiveAuthGate(client: supabase);
+    if (_initialized) {
+      return VersionGate(
+        build: _build,
+        fetchMinimum: _fetchMinimum,
+        child: LiveAuthGate(client: supabase),
+      );
+    }
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       home: Scaffold(
