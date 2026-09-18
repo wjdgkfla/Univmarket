@@ -82,6 +82,37 @@ void main() {
     expect(repo.getListing(id)!.status, 'sold');
   });
 
+  testWidgets('every screen lays out at 1.3x text and invalid ids recover', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (_, router) = await pumpApp(tester);
+    final failures = <String>[];
+    for (final path in [
+      '/',
+      '/search',
+      '/sell',
+      '/saved',
+      '/inbox',
+      '/listing/gmu-item-1',
+      '/chat/gmu-welcome',
+      '/profile',
+      '/listing/does-not-exist',
+      '/chat/does-not-exist',
+      '/edit/does-not-exist',
+    ]) {
+      router.go(path);
+      await tester.pumpAndSettle();
+      final error = tester.takeException();
+      if (error != null) failures.add('$path: $error');
+    }
+    expect(failures, isEmpty);
+  });
+
   test('errors shown to users never include raw exception text', () {
     expect(
       friendlyError(StateError('Listing unavailable')),

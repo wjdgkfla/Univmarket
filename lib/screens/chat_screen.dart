@@ -77,7 +77,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 context.canPop() ? context.pop() : context.go('/inbox'),
           ),
         ),
-        body: _sync?.failed == true
+        body: _sync == null
+            ? const Center(child: Text('This conversation is unavailable.'))
+            : _sync!.failed
             ? _retryBanner()
             : const Center(child: CircularProgressIndicator()),
       );
