@@ -71,13 +71,20 @@ class ListingTile extends StatelessWidget {
                             color: c.ink,
                           ),
                         ),
-                        Text(
-                          listing.condition.label.toUpperCase(),
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: c.inkFaint,
-                            letterSpacing: 0.3,
+                        const SizedBox(width: 6),
+                        // Shrinks instead of overflowing at large text sizes.
+                        Flexible(
+                          child: Text(
+                            listing.condition.label.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: c.inkFaint,
+                              letterSpacing: 0.3,
+                            ),
                           ),
                         ),
                       ],
