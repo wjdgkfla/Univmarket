@@ -26,7 +26,7 @@ George Washington University (gwu.edu, Foggy Bottom). Subdomains and lookalike
 domains are not implicitly approved. No user accounts, passwords, or sample
 listings are included. Pickup migrations configure Fenwick Library and Johnson
 Center on GMU's Fairfax campus, and Gelman Library on GWU's Foggy Bottom campus.
-The legacy Fenwick university entry is not removed or deactivated.
+The legacy Fenwick seed university is deactivated (not deleted); only GMU and GWU are active.
 
 Fenwick Library is a real location within GMU, not a separate university:
 https://library.gmu.edu/locations/fenwick
