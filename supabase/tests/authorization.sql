@@ -76,6 +76,31 @@ select pg_temp.probe('same university message succeeds',$q$select create_message
 select pg_temp.probe('cross university conversation denied',$q$select start_conversation('foreign')$q$,'42501');
 select pg_temp.probe('foreign view increment denied',$q$select increment_view_count('foreign')$q$,'42501');
 select pg_temp.probe('valid cash offer succeeds',$q$select send_offer('chat','cash',10,'{}')$q$,'allowed');
+select pg_temp.probe('valid trade offer reserves both listings atomically',
+$q$do $b$ declare offer_id text; begin
+ offer_id:=send_offer('chat','trade',0,array['trade']);
+ perform set_config('request.jwt.claim.sub','20000000-0000-0000-0000-000000000002',true);
+ perform respond_to_offer(offer_id,'accept');
+ if (select count(*) from listings where id in ('target','trade') and status='reserved')<>2
+ or (select count(*) from transaction_listings tl join transactions t on t.id=tl.transaction_id where t.offer_id=offer_id and tl.is_active)<>2 then
+ raise exception 'Trade did not reserve both listings'; end if;
+end $b$;$q$,'allowed');
+select pg_temp.probe('own available listing can be marked sold',
+$q$do $b$ begin update listings set status='sold' where id='trade';
+ if not found then raise exception 'Owner sale update failed'; end if; end $b$;$q$,'allowed');
+select pg_temp.probe('direct reserved status denied',
+$q$update listings set status='reserved' where id='trade'$q$,'42501');
+select pg_temp.probe('own listing view counter can increment',
+$q$do $b$ begin perform increment_view_count('trade');
+ if (select view_count from listings where id='trade')<>1 then raise exception 'Counter not incremented'; end if; end $b$;$q$,'allowed');
+select pg_temp.probe('unrelated block relationship cannot be queried',
+$q$select is_blocked('20000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000003')$q$,'42501');
+select pg_temp.probe('duplicate trade item rejected',
+$q$select send_offer('chat','trade',0,array['trade','trade'])$q$,'22023');
+select pg_temp.probe('null trade array rejected',
+$q$select send_offer('chat','trade',0,null)$q$,'22023');
+select pg_temp.probe('blank message rejected',
+$q$select create_message('chat','   ')$q$,'22023');
 select pg_temp.probe('cash cannot smuggle another owners trade listing',$q$select send_offer('chat','cash',10,array['foreign'])$q$,'22023');
 select pg_temp.probe('empty trade rejected',$q$select send_offer('chat','trade',0,'{}')$q$,'22023');
 select pg_temp.probe('null kind rejected',$q$select send_offer('chat',null,10,'{}')$q$,'22023');
@@ -118,6 +143,18 @@ reset role;
 set local role anon;
 set local request.jwt.claim.sub='';
 select pg_temp.probe('unauthenticated RPC denied',$q$select ensure_profile()$q$,'42501');
+reset role;
+-- Membership is checked from current database state, not a cached token.
+update auth.users set email='changed@unapproved.test' where id='20000000-0000-0000-0000-000000000001';
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
+select pg_temp.probe('email change immediately denies existing member',
+$q$select ensure_profile()$q$,'42501');
+select pg_temp.probe('email change also removes direct listing reads',
+$q$do $b$ begin if exists(select 1 from listings) then raise exception 'Unverified member read listings'; end if; end $b$;$q$,'allowed');
+select pg_temp.probe('email change removes direct profile editing',
+$q$do $b$ begin update profiles set display_name='Bad edit' where id=auth.uid()::text;
+ if found then raise exception 'Unverified member edited profile'; end if; end $b$;$q$,'allowed');
 reset role;
 table checks;
 do $$ declare failures text; begin

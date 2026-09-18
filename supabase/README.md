@@ -12,11 +12,32 @@ No live user records or password hashes were exported.
 The September profile privilege migration remains pending on production.
 The subsequent explicit_client_grants migration restores required Data API
 access when config.toml disables automatic grants. Neither migration is deployed
-by this workflow. Helper RPCs and other authorization gaps still need review.
+by this workflow.
+
+The verified-marketplace migration is also pending on production. It requires
+a confirmed, non-anonymous, non-banned Auth user whose exact email domain maps
+to an active university. Existing profiles must match that university and an
+active campus; they are not silently reassigned. User-editable metadata is never
+used to grant access. Inactive accounts and mismatched memberships are denied.
+New profiles use the configured main campus, or the sole active campus.
+
+The launch configuration adds George Mason University (gmu.edu, Fairfax) and
+George Washington University (gwu.edu, Foggy Bottom). Subdomains and lookalike
+domains are not implicitly approved. No pickup zones, user accounts, passwords,
+or sample listings are included. The legacy Fenwick entry is not removed or
+deactivated by these migrations; review its retirement before public launch.
+
+Chat and offer RPCs check participants, current membership, university boundaries,
+blocking and listing visibility. Acceptance rechecks expiry and availability,
+locks target/trade listings and preserves the conversation's buyer/seller roles.
+Clients cannot directly change listing ownership, university, moderation or
+counters. Public RPC signatures are preserved, with checked privileged operations
+in the unexposed app_private schema. Do not add app_private to exposed API schemas.
 
 GitHub Actions rebuilds an isolated PostgreSQL database and runs SQL assertions
 with ON_ERROR_STOP. Tests use transaction-scoped fixtures and rollback.
-This verifies reconstruction and focused profile controls, not complete release
+The workflow also lints database functions and runs security advisors.
+This verifies reconstruction and focused authorization controls, not complete release
 security or the absence of unrecorded live schema changes.
 
 Local verification requires Docker or Podman:
@@ -29,3 +50,14 @@ GitHub integration: wjdgkfla/Univmarket, directory ".".
 Automatic production deployment and preview branching stay disabled.
 Do not change the hosted migration ledger to force a push to succeed.
 Review pending migrations and CI results before deployment.
+
+Before live rollout:
+- Review existing memberships: the preflight found 8 profiles, only 2 of which
+  matched a confirmed approved-domain email. This is a point-in-time count,
+  not an instruction to modify or delete accounts.
+- Confirm the intended handling of legacy/demo accounts and the Fenwick domain.
+- Configure real pickup zones before enabling listing creation at either campus.
+- Review hosted schema drift, Storage policies, SMTP/email-confirmation settings,
+  leaked-password protection and outstanding advisor findings separately.
+- Take a recoverable backup and apply only reviewed pending migrations in order.
+  Never replay historical migrations or run a reset against the hosted project.
