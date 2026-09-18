@@ -23,6 +23,8 @@ jobs:
         run: npx --yes supabase@2.117.0 db start
       - name: Replay all migrations from empty
         run: npx --yes supabase@2.117.0 db reset --local
+      - name: Lint public endpoints and private authorization functions
+        run: npx --yes supabase@2.117.0 db lint --local --schema public,app_private --fail-on error
       - name: Test client privileges and row isolation
         env:
           PGPASSWORD: postgres

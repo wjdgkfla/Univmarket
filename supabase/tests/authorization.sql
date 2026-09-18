@@ -126,4 +126,3 @@ if failures is not null then raise exception E'Authorization regressions:\n%',fa
 end $$;
 select count(*)||' authorization checks passed' as result from checks;
 rollback;
-

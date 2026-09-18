@@ -2,9 +2,16 @@
 begin;
 insert into public.universities (id,slug,name,short_name,active)
 values ('10000000-0000-0000-0000-000000000001','ci-school','CI School','CI',true);
+insert into public.university_domains values ('ci.test','10000000-0000-0000-0000-000000000001');
+insert into public.campuses(id,university_id,slug,name) values
+('30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','main','CI Main');
+insert into auth.users(id,email,email_confirmed_at,is_anonymous) values
+('20000000-0000-0000-0000-000000000001','owner@ci.test',now(),false),
+('20000000-0000-0000-0000-000000000002','outsider@ci.test',now(),false);
 insert into public.profiles (id,university_id,display_name)
 values ('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','CI Owner'),
        ('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','CI Outsider');
+update public.profiles set home_campus_id='30000000-0000-0000-0000-000000000001';
 set local role authenticated;
 set local request.jwt.claim.sub = '20000000-0000-0000-0000-000000000001';
 do $test$
