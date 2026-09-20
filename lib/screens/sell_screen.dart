@@ -205,6 +205,7 @@ class _SellScreenState extends State<SellScreen> {
               const SizedBox(height: 20),
               DropdownButtonFormField<String>(
                 initialValue: category,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   border: OutlineInputBorder(),
@@ -217,6 +218,7 @@ class _SellScreenState extends State<SellScreen> {
               const SizedBox(height: 20),
               DropdownButtonFormField<Condition>(
                 initialValue: condition,
+                isExpanded: true,
                 decoration: const InputDecoration(
                   labelText: 'Condition',
                   border: OutlineInputBorder(),

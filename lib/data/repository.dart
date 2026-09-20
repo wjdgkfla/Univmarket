@@ -342,6 +342,9 @@ class Repository extends ChangeNotifier {
         _profiles[id] = _profileFromRow(row);
         notifyListeners();
       }
+    } catch (_) {
+      // Optional profile details must not cause an uncaught async failure.
+      // Leave the placeholder visible; a later render can retry the lookup.
     } finally {
       _fetchingProfiles.remove(id);
     }
@@ -351,6 +354,13 @@ class Repository extends ChangeNotifier {
     if (isDemo) return;
     _requireConfirmedAccount();
     await _refreshListings();
+    notifyListeners();
+  }
+
+  Future<void> refreshInbox() async {
+    if (isDemo) return;
+    _requireConfirmedAccount();
+    await _refreshConversations();
     notifyListeners();
   }
 
@@ -569,11 +579,30 @@ class Repository extends ChangeNotifier {
   }
 
   Future<void> sendMessage(String conversationId, String body) async {
-    await _db.rpc(
-      'create_message',
-      params: {'p_conversation_id': conversationId, 'p_body': body},
-    );
-    await refreshConversation(conversationId);
+    final id =
+        await _db.rpc(
+              'create_message',
+              params: {'p_conversation_id': conversationId, 'p_body': body},
+            )
+            as String;
+    // The RPC has committed. Cache its receipt before attempting another
+    // network request, so a read outage cannot invite a duplicate send.
+    final current = getConversation(conversationId);
+    if (current != null && !current.messages.any((m) => m.id == id)) {
+      final index = _conversations.indexWhere((c) => c.id == conversationId);
+      _conversations[index] = current.copyWith(
+        messages: [
+          ...current.messages,
+          TextMessage(id, MessageFrom.me, body.trim()),
+        ],
+      );
+      notifyListeners();
+    }
+    try {
+      await refreshConversation(conversationId);
+    } catch (_) {
+      // Chat synchronization handles refresh errors and retry independently.
+    }
   }
 
   Future<void> acceptOffer(String conversationId, String offerId) =>

@@ -147,9 +147,10 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             Expanded(
               child: ListView(
+                reverse: true,
                 padding: const EdgeInsets.all(16),
                 children: [
-                  for (final m in conversation.messages) ...[
+                  for (final m in conversation.messages.reversed) ...[
                     _MessageBubble(
                       message: m,
                       listing: listing,
@@ -200,7 +201,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: InkWell(
                       customBorder: const CircleBorder(),
                       onTap: () async {
-                        final text = draftController.text.trim();
+                        final draft = draftController.text;
+                        final text = draft.trim();
                         if (text.isEmpty || _sending) return;
                         setState(() => _sending = true);
                         try {
@@ -208,7 +210,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             conversation.id,
                             text,
                           );
-                          if (mounted) draftController.clear();
+                          if (mounted && draftController.text == draft) {
+                            draftController.clear();
+                          }
                         } catch (e) {
                           if (context.mounted) showError(context, e);
                         } finally {
@@ -296,8 +300,10 @@ class _MessageBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         Text(
                           'CASH OFFER',

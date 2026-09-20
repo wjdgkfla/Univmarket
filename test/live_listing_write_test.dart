@@ -12,10 +12,14 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
   bool withConversation = false,
   bool rejectOffers = false,
   bool privatePhoto = false,
+  bool rejectMessageRefresh = false,
+  bool rejectMessages = false,
+  bool rejectProfiles = false,
   String sellerId = 'student',
 }) async {
   final requests = <http.Request>[];
   var signedUrls = 0;
+  var messageSent = false;
   final client = SupabaseClient(
     'https://test.invalid',
     'public-test-key',
@@ -49,7 +53,22 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
       }
       Object result = [];
       final path = request.url.path;
-      if (path.endsWith('/rpc/send_offer')) {
+      if ((rejectProfiles && path.endsWith('/public_profiles')) ||
+          (rejectMessageRefresh &&
+              messageSent &&
+              path.endsWith('/conversations')) ||
+          (rejectMessages && path.endsWith('/rpc/create_message'))) {
+        return http.Response(
+          jsonEncode({'code': 'P0001', 'message': 'unavailable'}),
+          400,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (path.endsWith('/rpc/create_message')) {
+        messageSent = true;
+        result = 'message-confirmed';
+      } else if (path.endsWith('/rpc/send_offer')) {
         if (rejectOffers) {
           return http.Response(
             jsonEncode({'code': 'P0001', 'message': 'messaging unavailable'}),
@@ -193,6 +212,51 @@ Future<void> save(
   imageSource: photo,
 );
 void main() {
+  test(
+    'confirmed message remains sent when the subsequent read is unavailable',
+    () async {
+      final f = await fixture(
+        withConversation: true,
+        sellerId: 'seller',
+        rejectMessageRefresh: true,
+      );
+      await f.repo.sendMessage('thread', 'Hello');
+      final message =
+          f.repo.getConversation('thread')!.messages.single as TextMessage;
+      expect(message.id, 'message-confirmed');
+      expect(message.body, 'Hello');
+      expect(message.from, MessageFrom.me);
+      expect(
+        f.requests.where((r) => r.url.path.endsWith('/rpc/create_message')),
+        hasLength(1),
+      );
+    },
+  );
+
+  test('rejected message does not enter the conversation cache', () async {
+    final f = await fixture(
+      withConversation: true,
+      sellerId: 'seller',
+      rejectMessages: true,
+    );
+    await expectLater(
+      f.repo.sendMessage('thread', 'Hello'),
+      throwsA(isA<PostgrestException>()),
+    );
+    expect(f.repo.getConversation('thread')!.messages, isEmpty);
+  });
+
+  test(
+    'profile fetch outage does not escape as an unhandled async error',
+    () async {
+      final f = await fixture(rejectProfiles: true);
+      expect(f.repo.getSeller('seller'), isNull);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(f.repo.getSeller('seller'), isNull);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    },
+  );
+
   test(
     'marketplace refresh obtains a new signed URL for private photos',
     () async {

@@ -87,15 +87,15 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ],
             ),
-            Row(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Text(
-                    '${results.length} results',
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
+                Text(
+                  '${results.length} results',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 DropdownButton<String>(
+                  isExpanded: true,
                   value: sort,
                   items: ['Newest', 'Price: low to high', 'Price: high to low']
                       .map(
