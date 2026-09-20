@@ -4,7 +4,7 @@
 
 Functional audit, not a claim that the app is bug-free. No production accounts,
 messages, listings, auth settings or database records were changed in this pass.
-Email-provider setup, branding and optional services are deferred in NEXT_TIME.md.
+Email-provider setup, branding and optional services are deferred to a local checklist.
 
 The production web entrypoint was opened signed out. Authenticated UI was exercised
 separately with the existing offline repository, at a 440 × 956 browser viewport.
