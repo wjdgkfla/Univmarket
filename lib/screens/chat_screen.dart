@@ -19,7 +19,7 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final draftController = TextEditingController();
   ConversationSync? _sync;
   late final Repository _repo;
@@ -31,6 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final repo = _repo = context.read<Repository>();
     unawaited(repo.markConversationRead(widget.id));
     if (repo.isDemo) return;
+    WidgetsBinding.instance.addObserver(this);
     _sync = ConversationSync(
       changes: repo.conversationChanges(widget.id),
       load: () => repo.refreshConversation(widget.id),
@@ -40,6 +41,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _syncChanged() {
     if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Realtime may have disconnected while the phone was locked.
+      unawaited(_sync?.refresh());
+    }
   }
 
   Widget _retryBanner() => MaterialBanner(
@@ -53,6 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Messages that arrived while the chat was open count as read too.
     unawaited(_repo.markConversationRead(widget.id));
     _sync?.removeListener(_syncChanged);

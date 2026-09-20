@@ -51,6 +51,26 @@ class DelayedSendRepository extends RecoveringChatRepository {
 }
 
 void main() {
+  testWidgets('returning to chat after backgrounding recovers missed updates', (
+    tester,
+  ) async {
+    final repo = RecoveringChatRepository();
+    await tester.pumpWidget(
+      ChangeNotifierProvider<Repository>.value(
+        value: repo,
+        child: const MaterialApp(home: ChatScreen(id: 'thread')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chat updates are unavailable'), findsOneWidget);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Chat updates are unavailable'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    repo.dispose();
+  });
   testWidgets('opening a long conversation shows its newest message', (
     tester,
   ) async {

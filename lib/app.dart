@@ -28,40 +28,59 @@ GoRouter buildRouter() => GoRouter(
       builder: (context, state) =>
           SellScreen(editingId: state.pathParameters['id']!),
     ),
-    ShellRoute(
-      builder: (context, state, child) => Stack(
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, shell) => Stack(
         children: [
-          child,
-          PillNav(currentPath: state.uri.path),
+          shell,
+          PillNav(currentPath: state.uri.path, onSelect: shell.goBranch),
         ],
       ),
-      routes: [
-        // Tabs swap instantly: a push-style transition would leave the
-        // previous tab on screen underneath the incoming one.
-        GoRoute(
-          path: '/',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: HomeScreen()),
+      branches: [
+        // Keep each tab's form, search and scroll state while switching tabs.
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/',
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: HomeScreen()),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/search',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: SearchScreen()),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/search',
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: SearchScreen()),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/sell',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: SellScreen()),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/sell',
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: SellScreen()),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/saved',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: SavedScreen()),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/saved',
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: SavedScreen()),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/inbox',
-          pageBuilder: (context, state) =>
-              const NoTransitionPage(child: InboxScreen()),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/inbox',
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: InboxScreen()),
+            ),
+          ],
         ),
       ],
     ),

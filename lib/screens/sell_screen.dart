@@ -90,6 +90,20 @@ class _SellScreenState extends State<SellScreen> {
         editingId: widget.editingId,
       );
       if (!mounted) return;
+      if (widget.editingId == null) {
+        // The Sell tab stays mounted across tab switches. A completed post
+        // must not remain as a draft that can be accidentally posted twice.
+        form.currentState!.reset();
+        title.clear();
+        price.clear();
+        description.clear();
+        setState(() {
+          photo = null;
+          category = 'Electronics';
+          condition = Condition.good;
+          zone = context.read<Repository>().pickupZones.firstOrNull;
+        });
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -99,7 +113,13 @@ class _SellScreenState extends State<SellScreen> {
           ),
         ),
       );
-      context.go('/');
+      final router = GoRouter.of(context);
+      final visiblePath =
+          router.routerDelegate.currentConfiguration.last.matchedLocation;
+      final formPath = widget.editingId == null
+          ? '/sell'
+          : '/edit/${widget.editingId}';
+      if (visiblePath == formPath) router.go('/');
     } catch (e) {
       error(e);
     } finally {
@@ -174,6 +194,7 @@ class _SellScreenState extends State<SellScreen> {
                 ),
               const SizedBox(height: 16),
               TextFormField(
+                enabled: !saving,
                 controller: title,
                 maxLength: 100,
                 decoration: const InputDecoration(
@@ -187,6 +208,7 @@ class _SellScreenState extends State<SellScreen> {
               ),
               const SizedBox(height: 12),
               TextFormField(
+                enabled: !saving,
                 controller: price,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
@@ -213,7 +235,7 @@ class _SellScreenState extends State<SellScreen> {
                 items: categories
                     .map((v) => DropdownMenuItem(value: v, child: Text(v)))
                     .toList(),
-                onChanged: (v) => category = v!,
+                onChanged: saving ? null : (v) => category = v!,
               ),
               const SizedBox(height: 20),
               DropdownButtonFormField<Condition>(
@@ -228,10 +250,11 @@ class _SellScreenState extends State<SellScreen> {
                       (v) => DropdownMenuItem(value: v, child: Text(v.label)),
                     )
                     .toList(),
-                onChanged: (v) => condition = v!,
+                onChanged: saving ? null : (v) => condition = v!,
               ),
               const SizedBox(height: 20),
               TextFormField(
+                enabled: !saving,
                 controller: description,
                 minLines: 4,
                 maxLines: 6,
@@ -259,7 +282,7 @@ class _SellScreenState extends State<SellScreen> {
                     .toList(),
                 validator: (v) =>
                     v == null ? 'Choose a pickup location.' : null,
-                onChanged: (v) => zone = v,
+                onChanged: saving ? null : (v) => zone = v,
               ),
               const SizedBox(height: 24),
               FilledButton(

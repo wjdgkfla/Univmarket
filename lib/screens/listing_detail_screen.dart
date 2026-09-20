@@ -27,14 +27,17 @@ class ListingDetailScreen extends StatelessWidget {
     final mine = listing.sellerId == repo.me.id;
     Future<void> message({bool offer = false}) async {
       try {
-        final conversation = await repo.conversationForListing(id);
-        if (!context.mounted) return;
+        int? amount;
         if (offer) {
-          final amount = await showDialog<int>(
+          amount = await showDialog<int>(
             context: context,
             builder: (_) => const OfferDialog(),
           );
           if (amount == null) return;
+        }
+        if (!context.mounted) return;
+        final conversation = await repo.conversationForListing(id);
+        if (amount != null) {
           await repo.sendOffer(conversation, amount);
         }
         if (context.mounted) context.push('/chat/$conversation');
