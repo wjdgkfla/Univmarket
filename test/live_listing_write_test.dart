@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -12,10 +13,15 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
   bool withConversation = false,
   bool rejectOffers = false,
   bool privatePhoto = false,
+  bool rejectMessageRefresh = false,
+  bool rejectMessages = false,
+  bool rejectProfiles = false,
+  Future<void> Function()? beforeMessageRead,
   String sellerId = 'student',
 }) async {
   final requests = <http.Request>[];
   var signedUrls = 0;
+  var messageSent = false;
   final client = SupabaseClient(
     'https://test.invalid',
     'public-test-key',
@@ -49,7 +55,23 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
       }
       Object result = [];
       final path = request.url.path;
-      if (path.endsWith('/rpc/send_offer')) {
+      if (path.endsWith('/messages')) await beforeMessageRead?.call();
+      if ((rejectProfiles && path.endsWith('/public_profiles')) ||
+          (rejectMessageRefresh &&
+              messageSent &&
+              path.endsWith('/conversations')) ||
+          (rejectMessages && path.endsWith('/rpc/create_message'))) {
+        return http.Response(
+          jsonEncode({'code': 'P0001', 'message': 'unavailable'}),
+          400,
+          request: request,
+          headers: {'content-type': 'application/json'},
+        );
+      }
+      if (path.endsWith('/rpc/create_message')) {
+        messageSent = true;
+        result = 'message-confirmed';
+      } else if (path.endsWith('/rpc/send_offer')) {
         if (rejectOffers) {
           return http.Response(
             jsonEncode({'code': 'P0001', 'message': 'messaging unavailable'}),
@@ -138,6 +160,11 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
           },
         ];
       }
+      if (path.endsWith('/conversations') &&
+          withConversation &&
+          request.url.queryParameters.containsKey('id')) {
+        result = (result as List).single;
+      }
       if (path.endsWith('/listings') && request.method == 'PATCH') {
         result = rejectUpdates
             ? []
@@ -193,6 +220,115 @@ Future<void> save(
   imageSource: photo,
 );
 void main() {
+  for (final inbox in [true, false]) {
+    test(
+      'stale ${inbox ? 'inbox' : 'chat'} refresh cannot erase a send receipt',
+      () async {
+        final started = Completer<void>();
+        final release = Completer<void>();
+        var armed = false;
+        final f = await fixture(
+          withConversation: true,
+          sellerId: 'seller',
+          rejectMessageRefresh: true,
+          beforeMessageRead: () async {
+            if (armed) {
+              armed = false;
+              started.complete();
+              await release.future;
+            }
+          },
+        );
+        armed = true;
+        final pending = inbox
+            ? f.repo.refreshInbox()
+            : f.repo.refreshConversation('thread');
+        await started.future;
+        await f.repo.sendMessage('thread', 'A confirmed message');
+        release.complete();
+        await expectLater(pending, throwsA(isA<PostgrestException>()));
+        expect(f.repo.getConversation('thread')!.messages.map((m) => m.id), [
+          'message-confirmed',
+        ]);
+      },
+    );
+  }
+  test(
+    'a realtime read conflicted by an older read retries instead of losing the event',
+    () async {
+      final starts = [Completer<void>(), Completer<void>()];
+      final releases = [Completer<void>(), Completer<void>()];
+      var reads = 0;
+      var armed = false;
+      final f = await fixture(
+        withConversation: true,
+        sellerId: 'seller',
+        beforeMessageRead: () async {
+          if (!armed) return;
+          final read = reads++;
+          if (read < 2) {
+            starts[read].complete();
+            await releases[read].future;
+          }
+        },
+      );
+      armed = true;
+      final older = f.repo.refreshInbox();
+      await starts[0].future;
+      final realtime = f.repo.refreshConversation('thread');
+      await starts[1].future;
+      releases[0].complete();
+      await older;
+      releases[1].complete();
+      await realtime;
+      expect(reads, 3);
+    },
+  );
+  test(
+    'confirmed message remains sent when the subsequent read is unavailable',
+    () async {
+      final f = await fixture(
+        withConversation: true,
+        sellerId: 'seller',
+        rejectMessageRefresh: true,
+      );
+      await f.repo.sendMessage('thread', 'Hello');
+      final message =
+          f.repo.getConversation('thread')!.messages.single as TextMessage;
+      expect(message.id, 'message-confirmed');
+      expect(message.body, 'Hello');
+      expect(message.from, MessageFrom.me);
+      expect(
+        f.requests.where((r) => r.url.path.endsWith('/rpc/create_message')),
+        hasLength(1),
+      );
+    },
+  );
+
+  test('rejected message does not enter the conversation cache', () async {
+    final f = await fixture(
+      withConversation: true,
+      sellerId: 'seller',
+      rejectMessages: true,
+    );
+    await expectLater(
+      f.repo.sendMessage('thread', 'Hello'),
+      throwsA(isA<PostgrestException>()),
+    );
+    expect(f.repo.getConversation('thread')!.messages, isEmpty);
+  });
+
+  test(
+    'profile fetch outage does not escape as an unhandled async error',
+    () async {
+      final f = await fixture(rejectProfiles: true);
+      expect(f.repo.getSeller('seller'), isNull);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(f.repo.getSeller('seller'), isNull);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    },
+  );
+
   test(
     'marketplace refresh obtains a new signed URL for private photos',
     () async {

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
+import '../data/conversation_sync.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
 import '../widgets/empty_state.dart';
@@ -28,8 +30,58 @@ OfferStatus? _offerStatus(Conversation c) {
   return null;
 }
 
-class InboxScreen extends StatelessWidget {
+class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
+
+  @override
+  State<InboxScreen> createState() => _InboxScreenState();
+}
+
+class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
+  ConversationSync? _sync;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    final repo = context.read<Repository>();
+    if (repo.isDemo) return;
+    _sync = ConversationSync(changes: [], load: repo.refreshInbox)
+      ..addListener(_changed);
+    WidgetsBinding.instance.addObserver(this);
+    _startTimer();
+    unawaited(_sync!.refresh());
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
+      unawaited(_sync!.refresh());
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _startTimer();
+      unawaited(_sync!.refresh());
+    } else {
+      _timer?.cancel();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _sync?.removeListener(_changed);
+    _sync?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +93,18 @@ class InboxScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_sync?.failed == true)
+            MaterialBanner(
+              content: const Text(
+                'Could not refresh messages. Check your connection and retry.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => _sync?.refresh(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
             child: Text(

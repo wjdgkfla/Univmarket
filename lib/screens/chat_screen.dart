@@ -19,7 +19,7 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final draftController = TextEditingController();
   ConversationSync? _sync;
   late final Repository _repo;
@@ -31,6 +31,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final repo = _repo = context.read<Repository>();
     unawaited(repo.markConversationRead(widget.id));
     if (repo.isDemo) return;
+    WidgetsBinding.instance.addObserver(this);
     _sync = ConversationSync(
       changes: repo.conversationChanges(widget.id),
       load: () => repo.refreshConversation(widget.id),
@@ -40,6 +41,14 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _syncChanged() {
     if (mounted) setState(() {});
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Realtime may have disconnected while the phone was locked.
+      unawaited(_sync?.refresh());
+    }
   }
 
   Widget _retryBanner() => MaterialBanner(
@@ -53,6 +62,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     // Messages that arrived while the chat was open count as read too.
     unawaited(_repo.markConversationRead(widget.id));
     _sync?.removeListener(_syncChanged);
@@ -147,9 +157,10 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
             Expanded(
               child: ListView(
+                reverse: true,
                 padding: const EdgeInsets.all(16),
                 children: [
-                  for (final m in conversation.messages) ...[
+                  for (final m in conversation.messages.reversed) ...[
                     _MessageBubble(
                       message: m,
                       listing: listing,
@@ -200,7 +211,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: InkWell(
                       customBorder: const CircleBorder(),
                       onTap: () async {
-                        final text = draftController.text.trim();
+                        final draft = draftController.text;
+                        final text = draft.trim();
                         if (text.isEmpty || _sending) return;
                         setState(() => _sending = true);
                         try {
@@ -208,7 +220,9 @@ class _ChatScreenState extends State<ChatScreen> {
                             conversation.id,
                             text,
                           );
-                          if (mounted) draftController.clear();
+                          if (mounted && draftController.text == draft) {
+                            draftController.clear();
+                          }
                         } catch (e) {
                           if (context.mounted) showError(context, e);
                         } finally {
@@ -296,8 +310,10 @@ class _MessageBubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
                         Text(
                           'CASH OFFER',

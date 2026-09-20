@@ -20,6 +20,9 @@ class Listing {
   final String description;
   final String sellerId;
 
+  // Preview profiles have no auth.users row; the database also rejects contact.
+  bool get isSample => sellerId.startsWith('sample-seller-');
+
   factory Listing.fromJson(Map<String, dynamic> v) => Listing(
     id: v['id'],
     icon: v['icon'],
