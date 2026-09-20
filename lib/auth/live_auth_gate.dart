@@ -194,7 +194,12 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
     }
     final user = widget.client.auth.currentUser;
     final id =
-        user != null && !user.isAnonymous && user.emailConfirmedAt != null
+        user != null &&
+            !user.isAnonymous &&
+            user.emailConfirmedAt != null &&
+            launchEmailDomains.contains(
+              user.email?.toLowerCase().split('@').last,
+            )
         ? user.id
         : null;
     if (id == _userId) return;
@@ -265,6 +270,7 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
       );
     } else if (repo == null) {
       home = AuthScreen(
+        showWelcome: true,
         auth: SupabaseAuthService(widget.client),
         recovery: SupabaseRecoveryService(widget.client),
       );

@@ -102,13 +102,23 @@ class ListingDetailScreen extends StatelessWidget {
           ListTile(
             contentPadding: EdgeInsets.zero,
             leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-            title: Text(repo.getSeller(listing.sellerId)?.name ?? 'Seller'),
+            title: Text(
+              listing.isSample
+                  ? 'Sample seller'
+                  : repo.getSeller(listing.sellerId)?.name ?? 'Seller',
+            ),
             subtitle: Text(
-              repo.isDemo
+              listing.isSample
+                  ? 'Preview only · sign-in disabled'
+                  : repo.isDemo
                   ? 'Demo profile · identity not verified'
                   : 'Student seller',
             ),
           ),
+          if (listing.isSample)
+            const Text(
+              'This sample is not for sale. Messaging and offers are unavailable.',
+            ),
           if (repo.isDemo)
             const Text(
               'Sample marketplace. No real payment or exchange takes place.',
@@ -153,12 +163,12 @@ class ListingDetailScreen extends StatelessWidget {
             ),
           ] else ...[
             FilledButton.icon(
-              onPressed: () => message(),
+              onPressed: listing.isSample ? null : () => message(),
               icon: const Icon(Icons.chat_bubble_outline),
               label: const Text('Message seller'),
             ),
             OutlinedButton(
-              onPressed: listing.status == 'available'
+              onPressed: !listing.isSample && listing.status == 'available'
                   ? () => message(offer: true)
                   : null,
               child: const Text('Make offer'),

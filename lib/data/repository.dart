@@ -184,6 +184,7 @@ class Repository extends ChangeNotifier {
           ),
         ],
       );
+      _conversationRevision++;
       notifyListeners();
     }
   }
@@ -214,6 +215,7 @@ class Repository extends ChangeNotifier {
   final Map<String, Profile> _profiles = {};
   final Set<String> _fetchingProfiles = {};
   List<Conversation> _conversations = [];
+  int _conversationRevision = 0;
   Set<String> _favorites = {};
   Map<String, String> _zoneNames = {}; // pickup_zone_id -> display name
   String? _universityId;
@@ -441,7 +443,8 @@ class Repository extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _refreshConversations() async {
+  Future<void> _refreshConversations([int attempt = 0]) async {
+    final revision = _conversationRevision;
     final rows = await _db
         .from('conversations')
         .select()
@@ -450,7 +453,17 @@ class Repository extends ChangeNotifier {
     for (final r in rows) {
       list.add(await _hydrateConversation(r));
     }
+    // Another refresh or confirmed write won while this snapshot was loading.
+    // Preserve the newer cache and fetch again so a realtime event is not lost.
+    if (_disposed) return;
+    if (revision != _conversationRevision) {
+      if (attempt >= 2) {
+        throw StateError('Messages changed during refresh. Retry.');
+      }
+      return _refreshConversations(attempt + 1);
+    }
     _conversations = list;
+    _conversationRevision++;
   }
 
   Future<Conversation> _hydrateConversation(Map<String, dynamic> row) async {
@@ -562,19 +575,31 @@ class Repository extends ChangeNotifier {
 
   /// Re-fetches one conversation (messages + offers) and updates the cache.
   /// Used after mutations and by the chat screen's realtime subscription.
-  Future<void> refreshConversation(String conversationId) async {
+  Future<void> refreshConversation(String conversationId) =>
+      _refreshConversation(conversationId, 0);
+
+  Future<void> _refreshConversation(String conversationId, int attempt) async {
+    final revision = _conversationRevision;
     final row = await _db
         .from('conversations')
         .select()
         .eq('id', conversationId)
         .single();
     final conv = await _hydrateConversation(row);
+    if (_disposed) return;
+    if (revision != _conversationRevision) {
+      if (attempt >= 2) {
+        throw StateError('Messages changed during refresh. Retry.');
+      }
+      return _refreshConversation(conversationId, attempt + 1);
+    }
     final idx = _conversations.indexWhere((c) => c.id == conversationId);
     if (idx == -1) {
       _conversations.add(conv);
     } else {
       _conversations[idx] = conv;
     }
+    _conversationRevision++;
     notifyListeners();
   }
 
@@ -596,6 +621,7 @@ class Repository extends ChangeNotifier {
           TextMessage(id, MessageFrom.me, body.trim()),
         ],
       );
+      _conversationRevision++;
       notifyListeners();
     }
     try {

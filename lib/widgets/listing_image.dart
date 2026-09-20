@@ -17,7 +17,17 @@ class ListingImage extends StatelessWidget {
   final bool saved;
   @override
   Widget build(BuildContext context) {
-    final source = listing.imageSource;
+    final source =
+        listing.imageSource ??
+        (listing.isSample
+            ? switch (listing.tag) {
+                'Textbooks' => 'assets/images/books.jpg',
+                'Electronics' => 'assets/images/headphones.jpg',
+                'Dorm' => 'assets/images/lamp.jpg',
+                'Bags' => 'assets/images/bag.jpg',
+                _ => null,
+              }
+            : null);
     Widget fallback() => CategoryArt(icon: listing.icon);
     Widget photo;
     if (source == null) {
@@ -51,6 +61,8 @@ class ListingImage extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           photo,
+          if (listing.isSample)
+            const Positioned(left: 10, top: 10, child: Pill(label: 'Sample')),
           if (listing.status != 'available')
             Positioned(
               left: 10,
