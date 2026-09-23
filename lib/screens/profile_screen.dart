@@ -1,10 +1,13 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../data/repository.dart';
 import '../data/supabase_client.dart';
+import '../theme/tokens.dart';
 import '../widgets/async_action.dart';
+import '../widgets/avatar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/listing_row.dart';
 
@@ -13,6 +16,7 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final repo = context.watch<Repository>();
+    final c = context.colors;
     final mine = repo
         .listListings()
         .where((l) => l.sellerId == repo.me.id)
@@ -22,71 +26,104 @@ class ProfileScreen extends StatelessWidget {
         title: const Text('Your profile'),
         leading: IconButton(
           tooltip: 'Go back',
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(CupertinoIcons.chevron_back),
           onPressed: () => context.canPop() ? context.pop() : context.go('/'),
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
-          const CircleAvatar(
-            radius: 36,
-            child: Icon(Icons.person_outline, size: 40),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            repo.me.name,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text(repo.me.school, textAlign: TextAlign.center),
-          const SizedBox(height: 18),
-          if (repo.isDemo)
-            const Card(
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'You are exploring a local demo. Your listings, saved items, and messages stay on this device. University verification and real trading are not enabled.',
+          Padding(
+            padding: const EdgeInsets.fromLTRB(gutter, 20, gutter, 20),
+            child: Row(
+              children: [
+                Avatar(initials: repo.me.initials, size: 64),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        repo.me.name,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
+                          color: c.ink,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (!repo.isDemo) ...[
+                            Icon(
+                              CupertinoIcons.checkmark_seal_fill,
+                              size: 15,
+                              color: c.accent,
+                            ),
+                            const SizedBox(width: 5),
+                          ],
+                          Flexible(
+                            child: Text(
+                              repo.me.school,
+                              style: TextStyle(fontSize: 14, color: c.inkSoft),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+          ),
+          Container(height: 8, color: c.surface2),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(gutter, 16, 4, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Your listings',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: c.ink,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.go('/sell'),
+                  child: const Text('Add new'),
+                ),
+              ],
+            ),
+          ),
+          if (mine.isEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(gutter, 12, gutter, 28),
+              child: Text(
+                'Your next listing starts here. Sell something you no longer need.',
+                style: TextStyle(fontSize: 15, height: 1.45, color: c.inkSoft),
               ),
             ),
-          if (!repo.isDemo)
-            TextButton(
-              onPressed: () => runAction(
+          ListingRows(listings: mine),
+          if (!repo.isDemo) ...[
+            Container(height: 8, color: c.surface2),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: gutter),
+              leading: Icon(CupertinoIcons.square_arrow_right, color: c.bad),
+              title: Text(
+                'Sign out',
+                style: TextStyle(color: c.bad, fontWeight: FontWeight.w600),
+              ),
+              onTap: () => runAction(
                 context,
                 () => supabase.auth.signOut(scope: SignOutScope.local),
               ),
-              child: const Text('Sign out'),
             ),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Your listings',
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w700),
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.go('/sell'),
-                child: const Text('Add new'),
-              ),
-            ],
-          ),
-          if (mine.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 30),
-              child: Text(
-                'Your next listing starts here. Sell something you no longer need.',
-              ),
-            ),
-          for (final l in mine)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: ListingRow(listing: l),
-            ),
-          const SizedBox(height: 24),
+          ],
+          const SizedBox(height: 20),
           FutureBuilder(
             future: PackageInfo.fromPlatform(),
             builder: (context, snapshot) => Text(
@@ -94,7 +131,7 @@ class ProfileScreen extends StatelessWidget {
                   ? 'Version ${snapshot.data!.version} (${snapshot.data!.buildNumber})'
                   : '',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall,
+              style: TextStyle(fontSize: 12.5, color: c.inkFaint),
             ),
           ),
         ],

@@ -12,7 +12,7 @@ import 'screens/search_screen.dart';
 import 'screens/sell_screen.dart';
 import 'theme/tokens.dart';
 
-import 'widgets/pill_nav.dart';
+import 'widgets/tab_bar.dart';
 import 'widgets/marketplace_refresh.dart';
 
 /// Built fresh per [UnivMarketApp] instance rather than as a bare top-level
@@ -32,7 +32,7 @@ GoRouter buildRouter() => GoRouter(
       builder: (context, state, shell) => Stack(
         children: [
           shell,
-          PillNav(currentPath: state.uri.path, onSelect: shell.goBranch),
+          AppTabBar(currentPath: state.uri.path, onSelect: shell.goBranch),
         ],
       ),
       branches: [
@@ -126,29 +126,13 @@ class UnivMarketApp extends StatelessWidget {
       child: MaterialApp.router(
         title: marketName(repository.schoolShortName),
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          brightness: Brightness.light,
-          colorScheme: ColorScheme.fromSeed(seedColor: colors.accent).copyWith(
-            secondaryContainer: school?.second,
-            onSecondaryContainer: school == null ? null : colors.ink,
-          ),
-          scaffoldBackgroundColor: colors.bg,
-          extensions: [colors],
-          useMaterial3: true,
-        ),
-        darkTheme: ThemeData(
-          brightness: Brightness.dark,
-          scaffoldBackgroundColor: AppColors.dark.bg,
-          useMaterial3: true,
-        ),
+        theme: buildTheme(colors),
         themeMode: ThemeMode.light,
         routerConfig: _router,
         builder: (context, child) {
-          final bg = Theme.of(context).brightness == Brightness.dark
-              ? AppColors.dark.bg
-              : AppColors.light.bg;
+          final bg = colors.bg;
           return ColoredBox(
-            color: const Color(0xFFE8EAE8),
+            color: const Color(0xFFE9EBEE),
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 520),

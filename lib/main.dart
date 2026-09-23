@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'auth/live_auth_gate.dart';
 import 'data/supabase_client.dart';
 import 'theme/tokens.dart';
+import 'widgets/brand_mark.dart';
 import 'widgets/version_gate.dart';
 
 SemanticsHandle? accessibilityHandle;
@@ -78,7 +79,14 @@ class _StartupState extends State<Startup> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: _error == null
-                ? const CircularProgressIndicator()
+                ? const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      AppIconTile(size: 72),
+                      SizedBox(height: 24),
+                      CircularProgressIndicator.adaptive(),
+                    ],
+                  )
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

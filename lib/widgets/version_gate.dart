@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/tokens.dart';
@@ -63,11 +64,11 @@ class _VersionGateState extends State<VersionGate> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: _checking
-                ? const CircularProgressIndicator()
+                ? const CircularProgressIndicator.adaptive()
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.system_update_outlined, size: 40),
+                      const Icon(CupertinoIcons.arrow_down_circle, size: 44),
                       const SizedBox(height: 16),
                       const Text(
                         'Update required',

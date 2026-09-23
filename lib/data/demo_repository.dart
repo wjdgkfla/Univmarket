@@ -37,7 +37,7 @@ class DemoRepository extends Repository {
   Profile get me => Profile(
     id: 'demo-me',
     name: 'Your demo profile',
-    initials: 'YOU',
+    initials: 'Y',
     school: schools[_school]!,
     rating: 0,
     dealsDone: 0,
@@ -186,7 +186,7 @@ class DemoRepository extends Repository {
           messages: [
             const SystemMessage(
               'demo-note',
-              'Demo conversation — no messages are sent to real people.',
+              'Demo conversation. No messages are sent to real people.',
             ),
             const TextMessage(
               'hello',
@@ -285,7 +285,7 @@ class DemoRepository extends Repository {
         messages: [
           const SystemMessage(
             'demo',
-            'Demo conversation — messages stay on this device.',
+            'Demo conversation. Messages stay on this device.',
           ),
         ],
       ),

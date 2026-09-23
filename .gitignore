@@ -46,3 +46,6 @@ app.*.map.json
 
 # Personal follow-up notes stay local.
 /NEXT_TIME.md
+
+# Impeccable review captures (working files)
+.impeccable/review/

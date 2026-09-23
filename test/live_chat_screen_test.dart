@@ -106,7 +106,7 @@ void main() {
         ),
       );
       await tester.enterText(find.byType(TextField), 'First message');
-      await tester.tap(find.byIcon(Icons.send_rounded));
+      await tester.tap(find.bySemanticsLabel('Send message'));
       await tester.pump();
       await tester.enterText(find.byType(TextField), 'Next message');
       repo.sent.complete();

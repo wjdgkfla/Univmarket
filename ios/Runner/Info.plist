@@ -16,7 +16,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>NSPhotoLibraryUsageDescription</key><string>Choose a photo of the item you want to list on UnivMarket.</string><key>CFBundleDisplayName</key>
-	<string>Univmarket App</string>
+	<string>UnivMarket</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

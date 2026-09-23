@@ -1,8 +1,10 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
 import '../theme/tokens.dart';
+import '../widgets/category_chip.dart';
 import '../widgets/listing_row.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -53,115 +55,168 @@ class _SearchScreenState extends State<SearchScreen> {
     if (sort == 'Price: high to low') {
       results.sort((a, b) => b.price.compareTo(a.price));
     }
+    final c = context.colors;
+    final filtered = query.isNotEmpty || under50 || likeNew || free;
     return ScreenScaffold(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Find your next favorite',
-              style: TextStyle(fontSize: 27, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 18),
-            TextField(
+      title: 'Search',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(gutter, 4, gutter, 0),
+            child: TextField(
               controller: _queryController,
+              textInputAction: TextInputAction.search,
+              style: TextStyle(fontSize: 16, color: c.ink),
               decoration: InputDecoration(
-                labelText: 'Search listings',
                 hintText: 'Textbooks, a bike, headphones…',
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: Icon(
+                  CupertinoIcons.search,
+                  size: 19,
+                  color: c.inkSoft,
+                ),
                 suffixIcon: query.isEmpty
                     ? null
                     : IconButton(
                         tooltip: 'Clear search',
-                        icon: const Icon(Icons.close),
+                        icon: Icon(
+                          CupertinoIcons.xmark_circle_fill,
+                          size: 18,
+                          color: c.inkFaint,
+                        ),
                         onPressed: () {
                           _queryController.clear();
                           setState(() => query = '');
                         },
                       ),
-                filled: true,
-                fillColor: context.colors.surface,
+                fillColor: c.surface2,
+                contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  borderSide: BorderSide(color: context.colors.line),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  borderSide: BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  borderSide: BorderSide(color: context.colors.line),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  borderSide: BorderSide(color: c.ink, width: 1.5),
                 ),
               ),
               onChanged: (v) => setState(() => query = v),
             ),
-            const SizedBox(height: 12),
-            Wrap(
+          ),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: gutter),
+            child: Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
-                FilterChip(
-                  label: const Text('Under \$50'),
+                CategoryChip(
+                  label: 'Under \$50',
                   selected: under50,
-                  onSelected: (v) => setState(() => under50 = v),
+                  onTap: () => setState(() => under50 = !under50),
                 ),
-                FilterChip(
-                  label: const Text('Like new'),
+                CategoryChip(
+                  label: 'Like New',
                   selected: likeNew,
-                  onSelected: (v) => setState(() => likeNew = v),
+                  onTap: () => setState(() => likeNew = !likeNew),
                 ),
-                FilterChip(
-                  label: const Text('Free'),
+                CategoryChip(
+                  label: 'Free',
                   selected: free,
-                  onSelected: (v) => setState(() => free = v),
+                  onTap: () => setState(() => free = !free),
                 ),
               ],
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(gutter, 16, 4, 0),
+            child: Row(
               children: [
-                Text(
-                  '${results.length} results',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                Expanded(
+                  child: Text(
+                    '${results.length} results',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: c.ink,
+                    ),
+                  ),
                 ),
-                DropdownButton<String>(
-                  isExpanded: true,
-                  value: sort,
-                  items: ['Newest', 'Price: low to high', 'Price: high to low']
-                      .map(
-                        (v) => DropdownMenuItem(
-                          value: v,
-                          child: Text(v, style: const TextStyle(fontSize: 12)),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (v) => setState(() => sort = v!),
+                Flexible(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: _chooseSort,
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(CupertinoIcons.chevron_down, size: 14),
+                      label: Text(
+                        sort,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      style: TextButton.styleFrom(foregroundColor: c.ink),
+                    ),
+                  ),
                 ),
               ],
             ),
-            if (results.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 48),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'No matches. Try another search or remove a filter.',
-                      textAlign: TextAlign.center,
+          ),
+          if (results.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                vertical: 48,
+                horizontal: gutter,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(CupertinoIcons.search, size: 40, color: c.inkFaint),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No matches. Try another search or remove a filter.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 15, color: c.inkSoft),
+                  ),
+                  if (filtered)
+                    TextButton(
+                      onPressed: _resetSearch,
+                      child: const Text('Clear search and filters'),
                     ),
-                    if (query.isNotEmpty || under50 || likeNew || free)
-                      TextButton(
-                        onPressed: _resetSearch,
-                        child: const Text('Clear search and filters'),
-                      ),
-                  ],
-                ),
+                ],
               ),
-            for (final l in results)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: ListingRow(listing: l),
-              ),
-          ],
-        ),
+            ),
+          ListingRows(listings: results),
+        ],
       ),
     );
   }
+
+  Future<void> _chooseSort() async {
+    final choice = await showCupertinoModalPopup<String>(
+      context: context,
+      useRootNavigator: true,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: const Text('Sort by'),
+        actions: [
+          for (final option in _sorts)
+            CupertinoActionSheetAction(
+              isDefaultAction: option == sort,
+              onPressed: () => Navigator.pop(sheetContext, option),
+              child: Text(option),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(sheetContext),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+    if (choice != null && mounted) setState(() => sort = choice);
+  }
 }
+
+const _sorts = ['Newest', 'Price: low to high', 'Price: high to low'];

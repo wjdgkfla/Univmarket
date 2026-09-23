@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,6 +10,7 @@ import '../data/conversation_sync.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -90,6 +92,7 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
     final conversations = repo.listConversations();
 
     return ScreenScaffold(
+      title: 'Inbox',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -105,28 +108,19 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
                 ),
               ],
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
-            child: Text(
-              'Inbox',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.w800,
-                color: c.ink,
-              ),
-            ),
-          ),
           if (conversations.isEmpty)
             EmptyState(
-              icon: Icons.chat_bubble_outline,
+              icon: CupertinoIcons.chat_bubble_2,
               title: 'No messages yet',
               message:
                   'Message a seller or make an offer, and your conversations will appear here.',
               actionLabel: 'Browse listings',
               onAction: () => context.go('/'),
             ),
-          for (final conv in conversations)
-            _ConversationRow(conv: conv, repo: repo, colors: c),
+          for (var i = 0; i < conversations.length; i++) ...[
+            if (i > 0) Divider(indent: gutter + 52 + 12, color: c.line),
+            _ConversationRow(conv: conversations[i], repo: repo, colors: c),
+          ],
         ],
       ),
     );
@@ -147,24 +141,29 @@ class _ConversationRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = colors;
     final seller = repo.getSeller(conv.sellerId);
+    final listing = repo.getListing(conv.listingId);
     final status = _offerStatus(conv);
     return InkWell(
       onTap: () => context.push('/chat/${conv.id}'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: gutter, vertical: 12),
         child: Row(
           children: [
-            Avatar(initials: seller?.initials ?? '?'),
-            const SizedBox(width: 11),
+            Avatar(initials: seller?.initials ?? '?', size: 52),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     seller?.name ?? 'Unknown',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
+                      fontWeight: conv.unread
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      fontSize: 15.5,
                       color: c.ink,
                     ),
                   ),
@@ -173,24 +172,49 @@ class _ConversationRow extends StatelessWidget {
                     _lastMessage(conv),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 12.5, color: c.inkSoft),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: conv.unread ? c.ink : c.inkSoft,
+                      fontWeight: conv.unread
+                          ? FontWeight.w500
+                          : FontWeight.w400,
+                    ),
                   ),
+                  if (status != null) ...[
+                    const SizedBox(height: 6),
+                    status == OfferStatus.accepted
+                        ? const Pill(label: 'Reserved', tone: PillTone.good)
+                        : const Pill(label: 'Declined', tone: PillTone.bad),
+                  ],
                 ],
               ),
             ),
-            if (conv.unread)
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: c.accent,
-                  shape: BoxShape.circle,
+            if (conv.unread) ...[
+              const SizedBox(width: 8),
+              Semantics(
+                label: 'Unread',
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: c.accent,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              )
-            else if (status == OfferStatus.accepted)
-              const Pill(label: 'Reserved', tone: PillTone.good)
-            else if (status == OfferStatus.declined)
-              const Pill(label: 'Declined', tone: PillTone.bad),
+              ),
+            ],
+            if (listing != null) ...[
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 48,
+                height: 48,
+                child: ListingImage(
+                  listing: listing,
+                  radius: 6,
+                  showStatus: false,
+                ),
+              ),
+            ],
           ],
         ),
       ),
