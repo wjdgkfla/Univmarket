@@ -101,7 +101,7 @@ extension ListingJson on Listing {
       Listing.fromJson({...toJson(), 'status': status ?? this.status});
 }
 
-enum OfferStatus { pending, accepted, declined }
+enum OfferStatus { pending, accepted, declined, expired }
 
 enum MessageFrom { me, them }
 
@@ -126,16 +126,33 @@ class OfferMessage extends ChatMessage {
   final int amount;
   final String listingId;
   final OfferStatus status;
+
+  /// Server deadline for answering; null when unknown (e.g. demo offers).
+  final DateTime? expiresAt;
   const OfferMessage(
     super.id,
     this.from,
     this.amount,
     this.listingId,
-    this.status,
-  );
+    this.status, {
+    this.expiresAt,
+  });
 
-  OfferMessage copyWith({OfferStatus? status}) =>
-      OfferMessage(id, from, amount, listingId, status ?? this.status);
+  /// Still pending on the server, but past its deadline: it can no longer
+  /// be accepted, and nothing on the server flips its status yet.
+  bool get isExpired =>
+      status == OfferStatus.pending &&
+      expiresAt != null &&
+      !expiresAt!.isAfter(DateTime.now());
+
+  OfferMessage copyWith({OfferStatus? status}) => OfferMessage(
+    id,
+    from,
+    amount,
+    listingId,
+    status ?? this.status,
+    expiresAt: expiresAt,
+  );
 }
 
 class Conversation {

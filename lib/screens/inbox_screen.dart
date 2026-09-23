@@ -191,9 +191,17 @@ class _ConversationRow extends StatelessWidget {
                   ),
                   if (status != null) ...[
                     const SizedBox(height: 6),
-                    status == OfferStatus.accepted
-                        ? const Pill(label: 'Reserved', tone: PillTone.good)
-                        : const Pill(label: 'Declined', tone: PillTone.bad),
+                    switch (status) {
+                      OfferStatus.accepted => const Pill(
+                        label: 'Reserved',
+                        tone: PillTone.good,
+                      ),
+                      OfferStatus.expired => const Pill(
+                        label: 'Expired',
+                        tone: PillTone.neutral,
+                      ),
+                      _ => const Pill(label: 'Declined', tone: PillTone.bad),
+                    },
                   ],
                 ],
               ),

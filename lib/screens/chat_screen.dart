@@ -380,11 +380,15 @@ class _MessageBubble extends StatelessWidget {
 
     if (m is OfferMessage) {
       final mine = m.from == MessageFrom.me;
-      final tone = switch (m.status) {
-        OfferStatus.pending => PillTone.warn,
-        OfferStatus.accepted => PillTone.good,
-        OfferStatus.declined => PillTone.bad,
-      };
+      final expired = m.isExpired;
+      final tone = expired
+          ? PillTone.neutral
+          : switch (m.status) {
+              OfferStatus.pending => PillTone.warn,
+              OfferStatus.accepted => PillTone.good,
+              OfferStatus.declined => PillTone.bad,
+              OfferStatus.expired => PillTone.neutral,
+            };
       return Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
         child: FractionallySizedBox(
@@ -418,7 +422,10 @@ class _MessageBubble extends StatelessWidget {
                               color: c.inkSoft,
                             ),
                           ),
-                          Pill(label: m.status.name, tone: tone),
+                          Pill(
+                            label: expired ? 'expired' : m.status.name,
+                            tone: tone,
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -436,7 +443,7 @@ class _MessageBubble extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (m.status == OfferStatus.pending && !mine)
+                if (m.status == OfferStatus.pending && !expired && !mine)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
                     child: _OfferActions(

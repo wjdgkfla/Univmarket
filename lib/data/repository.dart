@@ -30,12 +30,12 @@ String _conditionToDb(Condition c) => switch (c) {
   Condition.good => 'good',
 };
 
-// Dart's OfferStatus only models pending/accepted/declined — withdrawn,
-// superseded and expired all read as "no longer live" so they collapse to
-// declined for display purposes.
+// Withdrawn and superseded offers read as "no longer live", so they collapse
+// to declined for display purposes.
 OfferStatus _offerStatusFromDb(String v) => switch (v) {
   'accepted' => OfferStatus.accepted,
   'pending' => OfferStatus.pending,
+  'expired' => OfferStatus.expired,
   _ => OfferStatus.declined,
 };
 
@@ -135,6 +135,31 @@ class Repository extends ChangeNotifier {
     final saved = await _listingFromRow(row);
     final index = _listings.indexWhere((item) => item.id == id);
     if (index >= 0) _listings[index] = saved;
+    notifyListeners();
+  }
+
+  /// Ends the reservation on your listing: [sold] marks it sold, otherwise
+  /// it is relisted as available. The buyer gets a note in the chat.
+  Future<void> finishReservation(String listingId, {required bool sold}) async {
+    _requireConfirmedAccount();
+    final listing = getListing(listingId);
+    if (listing == null ||
+        listing.sellerId != _me.id ||
+        listing.status != 'reserved') {
+      throw StateError('Only your reserved listings can be finished.');
+    }
+    await _db.rpc(
+      'finish_reservation',
+      params: {
+        'p_listing_id': listingId,
+        'p_outcome': sold ? 'sold' : 'cancelled',
+      },
+    );
+    // The change has committed; a failed reload must not report failure.
+    try {
+      await _refreshConversations();
+      await _refreshListings();
+    } catch (_) {}
     notifyListeners();
   }
 
@@ -304,11 +329,10 @@ class Repository extends ChangeNotifier {
         for (final zone in zoneRows)
           zone['id'] as String: zone['name'] as String,
       };
-      await Future.wait([
-        _refreshListings(),
-        _refreshConversations(),
-        _refreshFavorites(),
-      ]);
+      // Listings go last: the feed also keeps items from these threads and
+      // favorites after they stop being available.
+      await Future.wait([_refreshConversations(), _refreshFavorites()]);
+      await _refreshListings();
     } catch (e) {
       bootstrapError = e.toString();
       debugPrint('Repository bootstrap failed: $e');
@@ -367,11 +391,20 @@ class Repository extends ChangeNotifier {
   }
 
   Future<void> _refreshListings() async {
+    // A reserved or sold item must stay visible to the buyer chatting about
+    // it and to students who saved it.
+    final kept = {for (final c in _conversations) c.listingId, ..._favorites};
     final rows = await _db
         .from('listings')
         .select()
         .eq('university_id', _universityId!)
-        .or('status.eq.available,seller_id.eq.${_me.id}')
+        .or(
+          [
+            'status.eq.available',
+            'seller_id.eq.${_me.id}',
+            if (kept.isNotEmpty) 'id.in.(${kept.join(',')})',
+          ].join(','),
+        )
         .eq('moderation_state', 'visible')
         .isFilter('deleted_at', null)
         .order('created_at', ascending: false);
@@ -545,7 +578,14 @@ class Repository extends ChangeNotifier {
       final listingId = (offer?['listing_id'] as String?) ?? fallbackListingId;
       // Use the offer id (not the message id) so acceptOffer/declineOffer
       // can call respond_to_offer directly with what the UI hands back.
-      return OfferMessage(offerId, from, amount, listingId, status);
+      return OfferMessage(
+        offerId,
+        from,
+        amount,
+        listingId,
+        status,
+        expiresAt: DateTime.tryParse(offer?['expires_at'] as String? ?? ''),
+      );
     }
     return TextMessage(id, from, m['body'] as String? ?? '');
   }
@@ -647,6 +687,14 @@ class Repository extends ChangeNotifier {
       params: {'p_offer_id': offerId, 'p_action': action},
     );
     await refreshConversation(conversationId);
+    if (action == 'accept') {
+      // The listing is now reserved; drop the stale "available" copy. The
+      // accept has committed, so a failed reload must not report failure.
+      try {
+        await _refreshListings();
+        notifyListeners();
+      } catch (_) {}
+    }
   }
 
   /// Persist editable fields and cache only the row confirmed by the server.

@@ -487,4 +487,32 @@ class DemoRepository extends Repository {
     );
     await _save();
   }
+
+  @override
+  Future<void> finishReservation(String listingId, {required bool sold}) async {
+    final listing = getListing(listingId);
+    if (listing == null ||
+        listing.sellerId != me.id ||
+        listing.status != 'reserved') {
+      throw StateError('Only your reserved listings can be finished.');
+    }
+    _items[_items.indexWhere((l) => l.id == listingId)] = listing.copyWith(
+      status: sold ? 'sold' : 'available',
+    );
+    for (final thread in [..._threads]) {
+      if (thread.listingId != listingId) continue;
+      _updateThread(
+        thread.copyWith(
+          messages: [
+            ...thread.messages,
+            SystemMessage(
+              'finished-${thread.messages.length}',
+              sold ? 'Marked as sold' : 'Reservation cancelled',
+            ),
+          ],
+        ),
+      );
+    }
+    await _save();
+  }
 }

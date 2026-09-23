@@ -90,6 +90,10 @@ void main() {
             result = [
               {'id': 'zone-b', 'name': 'Campus B library'},
             ];
+          } else if (path.endsWith('/favorites')) {
+            result = [
+              {'listing_id': 'saved-reserved'},
+            ];
           } else if (path.endsWith('/listings')) {
             result = [
               {
@@ -145,9 +149,10 @@ void main() {
         (r) => r.url.path.endsWith('/listings'),
       );
       expect(feedRequest.url.queryParameters['university_id'], 'eq.school-b');
+      // Saved (and chatted-about) items stay loaded after they are reserved.
       expect(
         feedRequest.url.queryParameters['or'],
-        '(status.eq.available,seller_id.eq.student)',
+        '(status.eq.available,seller_id.eq.student,id.in.(saved-reserved))',
       );
       expect(repo.listListings().single.universityId, 'school-b');
       expect(

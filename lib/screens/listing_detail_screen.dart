@@ -10,6 +10,9 @@ import '../widgets/avatar.dart';
 import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
 
+/// Listings with a message/offer action in flight.
+final _messaging = <String>{};
+
 class ListingDetailScreen extends StatelessWidget {
   const ListingDetailScreen({super.key, required this.id});
   final String id;
@@ -30,6 +33,8 @@ class ListingDetailScreen extends StatelessWidget {
     }
     final mine = listing.sellerId == repo.me.id;
     Future<void> message({bool offer = false}) async {
+      // A second tap while the first is still opening the chat is ignored.
+      if (!_messaging.add(id)) return;
       try {
         int? amount;
         if (offer) {
@@ -47,6 +52,8 @@ class ListingDetailScreen extends StatelessWidget {
         if (context.mounted) context.push('/chat/$conversation');
       } catch (e) {
         if (context.mounted) showError(context, e);
+      } finally {
+        _messaging.remove(id);
       }
     }
 
@@ -90,46 +97,82 @@ class ListingDetailScreen extends StatelessWidget {
       ),
     );
 
+    /// Asks before an owner action that can't be undone, then runs it.
+    Future<void> confirmThen(
+      String title,
+      String body,
+      String confirmLabel,
+      Future<void> Function() action,
+    ) async {
+      final confirmed = await showAdaptiveDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog.adaptive(
+          title: Text(title),
+          content: Text(body),
+          actions: [
+            dialogAction(
+              dialogContext,
+              'Cancel',
+              () => Navigator.pop(dialogContext, false),
+            ),
+            dialogAction(
+              dialogContext,
+              confirmLabel,
+              () => Navigator.pop(dialogContext, true),
+              primary: true,
+              destructive: true,
+            ),
+          ],
+        ),
+      );
+      if (confirmed == true && context.mounted) {
+        await runAction(context, action);
+      }
+    }
+
+    final reserved = listing.status == 'reserved';
     final List<Widget> actions = mine
-        ? [
-            FilledButton(
-              onPressed: () => context.push('/edit/$id'),
-              child: const Text('Edit listing'),
-            ),
-            OutlinedButton(
-              onPressed: listing.status == 'sold'
-                  ? null
-                  : () async {
-                      final confirmed = await showAdaptiveDialog<bool>(
-                        context: context,
-                        builder: (dialogContext) => AlertDialog.adaptive(
-                          title: const Text('Mark as sold?'),
-                          content: const Text(
+        ? reserved
+              // An accepted offer reserved it: finish the sale or relist.
+              ? [
+                  FilledButton(
+                    onPressed: () => confirmThen(
+                      'Mark as sold?',
+                      'The buyer will be told in your chat. This can\'t be undone.',
+                      'Mark as sold',
+                      () => repo.finishReservation(id, sold: true),
+                    ),
+                    child: const Text('Mark as sold'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () => confirmThen(
+                      'Cancel reservation?',
+                      'The listing goes back on the market and the buyer is told in your chat.',
+                      'Cancel reservation',
+                      () => repo.finishReservation(id, sold: false),
+                    ),
+                    child: const Text('Cancel reservation'),
+                  ),
+                ]
+              : [
+                  FilledButton(
+                    onPressed: listing.status == 'available'
+                        ? () => context.push('/edit/$id')
+                        : null,
+                    child: const Text('Edit listing'),
+                  ),
+                  OutlinedButton(
+                    onPressed: listing.status == 'sold'
+                        ? null
+                        : () => confirmThen(
+                            'Mark as sold?',
                             'Buyers will no longer see this listing or be able to make offers. This can\'t be undone.',
+                            'Mark as sold',
+                            () => repo.markSold(id),
                           ),
-                          actions: [
-                            dialogAction(
-                              dialogContext,
-                              'Cancel',
-                              () => Navigator.pop(dialogContext, false),
-                            ),
-                            dialogAction(
-                              dialogContext,
-                              'Mark as sold',
-                              () => Navigator.pop(dialogContext, true),
-                              primary: true,
-                              destructive: true,
-                            ),
-                          ],
-                        ),
-                      );
-                      if (confirmed == true && context.mounted) {
-                        await runAction(context, () => repo.markSold(id));
-                      }
-                    },
-              child: const Text('Mark as sold'),
-            ),
-          ]
+                    child: const Text('Mark as sold'),
+                  ),
+                ]
         : [
             OutlinedButton(
               onPressed: !listing.isSample && listing.status == 'available'
