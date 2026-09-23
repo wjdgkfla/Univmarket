@@ -10,6 +10,34 @@ import '../widgets/async_action.dart';
 import '../widgets/avatar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/listing_row.dart';
+import 'listing_detail_screen.dart' show dialogAction;
+
+Future<void> _confirmDelete(BuildContext context, Repository repo) async {
+  final confirmed = await showAdaptiveDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog.adaptive(
+      title: const Text('Delete your account?'),
+      content: const Text(
+        'Your listings, saved items and sign-in are removed, open offers are withdrawn, and reservations are cancelled. '
+        'Past messages stay with the other student, shown as from "Deleted student". This can\'t be undone.',
+      ),
+      actions: [
+        dialogAction(dialog, 'Cancel', () => Navigator.pop(dialog, false)),
+        dialogAction(
+          dialog,
+          'Delete account',
+          () => Navigator.pop(dialog, true),
+          primary: true,
+          destructive: true,
+        ),
+      ],
+    ),
+  );
+  // Success signs out, and the app returns to the sign-in screen.
+  if (confirmed == true && context.mounted) {
+    await runAction(context, repo.deleteAccount);
+  }
+}
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -148,6 +176,15 @@ class ProfileScreen extends StatelessWidget {
                 context,
                 () => supabase.auth.signOut(scope: SignOutScope.local),
               ),
+            ),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: gutter),
+              leading: Icon(CupertinoIcons.trash, color: c.bad),
+              title: Text(
+                'Delete account',
+                style: TextStyle(color: c.bad, fontWeight: FontWeight.w600),
+              ),
+              onTap: () => _confirmDelete(context, repo),
             ),
           ],
           const SizedBox(height: 20),

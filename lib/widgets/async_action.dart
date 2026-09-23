@@ -16,6 +16,7 @@ const _serverMessages = {
   'University access requires review',
   'Report unavailable',
   'Invalid report',
+  'Account unavailable',
 };
 
 /// User-facing text for a failed action. The repositories throw

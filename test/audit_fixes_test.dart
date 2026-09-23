@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:univmarket_app/data/models.dart';
 import 'package:univmarket_app/data/repository.dart';
 import 'package:univmarket_app/screens/listing_detail_screen.dart';
+import 'package:univmarket_app/screens/profile_screen.dart';
 import 'package:univmarket_app/theme/tokens.dart';
 import 'package:univmarket_app/widgets/async_action.dart';
 
@@ -168,6 +169,33 @@ void main() {
     expect(find.text('Calculus textbook, 9th edition'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('account deletion asks first, then deletes once', (tester) async {
+    final repo = _DeletingRepo();
+    await tester.pumpWidget(
+      ChangeNotifierProvider<Repository>.value(
+        value: repo,
+        child: MaterialApp(
+          theme: buildTheme(AppColors.light),
+          home: const ProfileScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete your account?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(repo.deletions, 0);
+
+    await tester.tap(find.text('Delete account'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete account').last);
+    await tester.pumpAndSettle();
+    expect(repo.deletions, 1);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// Offline repository holding one reserved listing owned by "me".
@@ -196,4 +224,11 @@ class _ReservedRepo extends Repository {
     String listingId, {
     required bool sold,
   }) async => finished.add((listingId, sold));
+}
+
+class _DeletingRepo extends Repository {
+  _DeletingRepo() : super.offline();
+  int deletions = 0;
+  @override
+  Future<void> deleteAccount() async => deletions++;
 }

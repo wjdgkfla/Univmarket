@@ -384,10 +384,20 @@ class Repository extends ChangeNotifier {
           .select()
           .eq('id', id)
           .maybeSingle();
-      if (row != null) {
-        _profiles[id] = _profileFromRow(row);
-        notifyListeners();
-      }
+      // public_profiles hides deleted accounts; their past messages remain.
+      _profiles[id] = row != null
+          ? _profileFromRow(row)
+          : Profile(
+              id: id,
+              name: 'Deleted student',
+              initials: '?',
+              school: _schoolName,
+              rating: 0,
+              dealsDone: 0,
+              meetupsKeptPct: 0,
+              avgReplyTime: '',
+            );
+      notifyListeners();
     } catch (_) {
       // Optional profile details must not cause an uncaught async failure.
       // Leave the placeholder visible; a later render can retry the lookup.
@@ -523,6 +533,17 @@ class Repository extends ChangeNotifier {
         'p_reason': reason,
       },
     );
+  }
+
+  /// Deletes your account on the server (anonymized profile, listings
+  /// removed, open deals unwound, sign-in removed), then signs out here.
+  Future<void> deleteAccount() async {
+    _requireConfirmedAccount();
+    await _db.rpc('delete_my_account');
+    // The account is gone; clearing the local session cannot fail it.
+    try {
+      await _db.auth.signOut(scope: SignOutScope.local);
+    } catch (_) {}
   }
 
   final Set<String> _togglingFavorites = {};
