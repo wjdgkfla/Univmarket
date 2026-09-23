@@ -9,6 +9,7 @@ import '../data/repository.dart';
 import '../data/conversation_sync.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
+import '../widgets/fade_slide_in.dart';
 import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
 import '../widgets/async_action.dart';
@@ -27,6 +28,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   late final Repository _repo;
   bool _sending = false;
   bool _loaded = false;
+  final _shown = <String>{};
+  bool _primed = false;
 
   Future<void> _send() async {
     final draft = draftController.text;
@@ -128,6 +131,11 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     }
     final seller = repo.getSeller(conversation.sellerId);
     final listing = repo.getListing(conversation.listingId);
+    // The history on first open is at rest; later messages slide in.
+    if (!_primed) {
+      _primed = true;
+      _shown.addAll(conversation.messages.map((m) => m.id));
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -240,10 +248,14 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
                   children: [
                     for (final m in conversation.messages.reversed) ...[
-                      _MessageBubble(
-                        message: m,
-                        listing: listing,
-                        conversationId: conversation.id,
+                      FadeSlideIn(
+                        key: ValueKey(m.id),
+                        animate: _shown.add(m.id),
+                        child: _MessageBubble(
+                          message: m,
+                          listing: listing,
+                          conversationId: conversation.id,
+                        ),
                       ),
                       const SizedBox(height: 6),
                     ],

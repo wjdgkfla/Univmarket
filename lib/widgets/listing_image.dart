@@ -62,8 +62,15 @@ class ListingImage extends StatelessWidget {
         source,
         fit: BoxFit.cover,
         gaplessPlayback: true,
-        frameBuilder: (context, child, frame, sync) =>
-            sync || frame != null ? child : ColoredBox(color: c.surface2),
+        // Cached photos show at once; downloaded ones fade in over the fill.
+        frameBuilder: (context, child, frame, sync) => sync
+            ? child
+            : AnimatedOpacity(
+                opacity: frame == null ? 0 : 1,
+                duration: AppMotion.of(context, AppMotion.base),
+                curve: AppMotion.curve,
+                child: child,
+              ),
         errorBuilder: (_, _, _) => fallback(),
       );
     } else {

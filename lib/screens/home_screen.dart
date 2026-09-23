@@ -9,6 +9,7 @@ import '../widgets/avatar.dart';
 import '../widgets/brand_mark.dart';
 import '../widgets/category_chip.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/fade_slide_in.dart';
 import '../widgets/listing_tile.dart';
 import '../widgets/screen_scaffold.dart';
 
@@ -209,10 +210,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         spacing: gap,
                         runSpacing: 22,
                         children: [
-                          for (final item in items)
-                            SizedBox(
-                              width: width,
-                              child: ListingTile(listing: item),
+                          for (var i = 0; i < items.length; i++)
+                            FadeSlideIn(
+                              // A new category re-plays the entrance.
+                              key: ValueKey('$category/${items[i].id}'),
+                              index: i,
+                              child: SizedBox(
+                                width: width,
+                                child: ListingTile(listing: items[i]),
+                              ),
                             ),
                         ],
                       );

@@ -131,6 +131,18 @@ class AppRadius {
   static const pill = 999.0;
 }
 
+/// Motion tokens: one rhythm for entrances, fades and tab switches.
+class AppMotion {
+  static const fast = Duration(milliseconds: 160);
+  static const base = Duration(milliseconds: 240);
+  static const stagger = Duration(milliseconds: 40);
+  static const curve = Curves.easeOutCubic;
+
+  /// [d], or zero when the system asks for reduced motion.
+  static Duration of(BuildContext context, Duration d) =>
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false ? Duration.zero : d;
+}
+
 /// Horizontal page gutter.
 const double gutter = 16;
 

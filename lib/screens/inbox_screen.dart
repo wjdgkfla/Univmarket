@@ -10,6 +10,7 @@ import '../data/conversation_sync.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/fade_slide_in.dart';
 import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
 import '../widgets/screen_scaffold.dart';
@@ -119,7 +120,15 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
             ),
           for (var i = 0; i < conversations.length; i++) ...[
             if (i > 0) Divider(indent: gutter + 52 + 12, color: c.line),
-            _ConversationRow(conv: conversations[i], repo: repo, colors: c),
+            FadeSlideIn(
+              key: ValueKey(conversations[i].id),
+              index: i,
+              child: _ConversationRow(
+                conv: conversations[i],
+                repo: repo,
+                colors: c,
+              ),
+            ),
           ],
         ],
       ),
@@ -197,7 +206,7 @@ class _ConversationRow extends StatelessWidget {
                   width: 9,
                   height: 9,
                   decoration: BoxDecoration(
-                    color: c.accent,
+                    color: c.bad,
                     shape: BoxShape.circle,
                   ),
                 ),

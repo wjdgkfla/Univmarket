@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../data/models.dart';
 import '../theme/tokens.dart';
+import 'fade_slide_in.dart';
 import 'listing_image.dart';
 import 'pill.dart';
 
@@ -82,7 +83,12 @@ class ListingRows extends StatelessWidget {
     children: [
       for (var i = 0; i < listings.length; i++) ...[
         if (i > 0) const Divider(indent: gutter + 96 + 14, endIndent: gutter),
-        ListingRow(listing: listings[i]),
+        // Keyed by id: rows that stay in a filtered list keep still.
+        FadeSlideIn(
+          key: ValueKey(listings[i].id),
+          index: i,
+          child: ListingRow(listing: listings[i]),
+        ),
       ],
     ],
   );

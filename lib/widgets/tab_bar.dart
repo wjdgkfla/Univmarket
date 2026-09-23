@@ -125,25 +125,34 @@ class _TabItem extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Icon(icon, size: 24, color: color),
-                  if (badge)
-                    Positioned(
-                      right: -3,
-                      top: -1,
-                      child: Container(
-                        width: 9,
-                        height: 9,
-                        decoration: BoxDecoration(
-                          color: c.bad,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: c.bg, width: 1.5),
+              // The newly selected icon pops from 85% as it fills in.
+              TweenAnimationBuilder<double>(
+                key: ValueKey(selected),
+                tween: Tween(begin: selected ? 0.85 : 1, end: 1),
+                duration: AppMotion.of(context, AppMotion.base),
+                curve: Curves.easeOutBack,
+                builder: (context, scale, child) =>
+                    Transform.scale(scale: scale, child: child),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(icon, size: 24, color: color),
+                    if (badge)
+                      Positioned(
+                        right: -3,
+                        top: -1,
+                        child: Container(
+                          width: 9,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            color: c.bad,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: c.bg, width: 1.5),
+                          ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 3),
               Text(

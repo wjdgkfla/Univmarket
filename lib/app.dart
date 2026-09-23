@@ -28,13 +28,15 @@ GoRouter buildRouter() => GoRouter(
       builder: (context, state) =>
           SellScreen(editingId: state.pathParameters['id']!),
     ),
-    StatefulShellRoute.indexedStack(
+    StatefulShellRoute(
       builder: (context, state, shell) => Stack(
         children: [
           shell,
           AppTabBar(currentPath: state.uri.path, onSelect: shell.goBranch),
         ],
       ),
+      navigatorContainerBuilder: (context, shell, children) =>
+          _FadingTabs(index: shell.currentIndex, children: children),
       branches: [
         // Keep each tab's form, search and scroll state while switching tabs.
         StatefulShellBranch(
@@ -99,6 +101,62 @@ GoRouter buildRouter() => GoRouter(
     ),
   ],
 );
+
+/// Keeps every tab mounted like an IndexedStack, but fades the selected tab
+/// in. The previous tab goes offstage at once, so it never shows underneath.
+class _FadingTabs extends StatefulWidget {
+  const _FadingTabs({required this.index, required this.children});
+  final int index;
+  final List<Widget> children;
+
+  @override
+  State<_FadingTabs> createState() => _FadingTabsState();
+}
+
+class _FadingTabsState extends State<_FadingTabs>
+    with SingleTickerProviderStateMixin {
+  late final _fade = AnimationController(vsync: this, value: 1);
+  late final _opacity = CurvedAnimation(parent: _fade, curve: AppMotion.curve);
+
+  @override
+  void didUpdateWidget(_FadingTabs old) {
+    super.didUpdateWidget(old);
+    if (old.index != widget.index) {
+      _fade.duration = AppMotion.of(context, AppMotion.fast);
+      _fade.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _opacity.dispose();
+    _fade.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        for (var i = 0; i < widget.children.length; i++)
+          // Same wrappers for every tab, so switching never remounts one.
+          Offstage(
+            offstage: i != widget.index,
+            child: TickerMode(
+              enabled: i == widget.index,
+              child: FadeTransition(
+                opacity: i == widget.index
+                    ? _opacity
+                    : kAlwaysCompleteAnimation,
+                child: widget.children[i],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
 
 /// "GMUMarket", "GWUMarket", or the neutral brand before a school is known.
 String marketName(String shortName) =>

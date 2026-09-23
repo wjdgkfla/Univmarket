@@ -293,57 +293,6 @@ class ListingDetailScreen extends StatelessWidget {
                     listing.description,
                     style: TextStyle(fontSize: 16, height: 1.55, color: c.ink),
                   ),
-                ]),
-                const Divider(indent: gutter, endIndent: gutter),
-                section([
-                  Text(
-                    'Pickup spot',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: c.ink,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: c.accentWash,
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.control,
-                          ),
-                        ),
-                        child: Icon(
-                          CupertinoIcons.location_solid,
-                          size: 20,
-                          color: c.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              listing.zone,
-                              style: TextStyle(
-                                fontSize: 15.5,
-                                fontWeight: FontWeight.w600,
-                                color: c.ink,
-                              ),
-                            ),
-                            Text(
-                              repo.me.school,
-                              style: TextStyle(fontSize: 13, color: c.inkSoft),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
                   if (listing.isSample)
                     notice(
                       'This sample is not for sale. Messaging and offers are unavailable.',
