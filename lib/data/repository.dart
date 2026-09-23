@@ -475,25 +475,121 @@ class Repository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Rows per page of the main "available" feed. The rest of the university
+  /// might have more; [hasMoreListings] says so and [loadMoreListings] gets
+  /// the next page.
+  static const _feedPageSize = 300;
+  bool _hasMoreListings = false;
+  bool get hasMoreListings => _hasMoreListings;
+  bool _loadingMoreListings = false;
+  ({String createdAt, String id})? _feedCursor;
+
   Future<void> _refreshListings() async {
     // A reserved or sold item must stay visible to the buyer chatting about
-    // it and to students who saved it.
-    final kept = {for (final c in _conversations) c.listingId, ..._favorites};
-    final rows = await _db
+    // it and to students who saved it. That set is bounded by how much a
+    // student saves/chats about, unlike "every available listing" below, so
+    // it is fetched separately and never needs paging.
+    //
+    // ponytail: capped at 300 ids so this request's URL can never grow with
+    // the marketplace's size — a favorite/chat older than the most recent
+    // 300 drops from this feed (Saved and Inbox still fetch it directly by
+    // id, so it isn't lost there). Raise the cap, or move this to a small
+    // RPC that takes the ids in the request body instead of the URL, if a
+    // long-time user actually hits it.
+    final kept = {
+      for (final c in _conversations) c.listingId,
+      ..._favorites,
+    }.take(300).toList();
+    final availableRows = await _db
         .from('listings')
         .select()
         .eq('university_id', _universityId!)
+        .eq('status', 'available')
+        .eq('moderation_state', 'visible')
+        .isFilter('deleted_at', null)
+        .order('created_at', ascending: false)
+        .order('id', ascending: false)
+        .limit(_feedPageSize);
+    _hasMoreListings = availableRows.length == _feedPageSize;
+    _feedCursor = availableRows.isEmpty
+        ? null
+        : (
+            createdAt: availableRows.last['created_at'] as String? ?? '',
+            id: availableRows.last['id'] as String,
+          );
+    final keptRows = await _db
+        .from('listings')
+        .select()
+        .eq('university_id', _universityId!)
+        .eq('moderation_state', 'visible')
+        .isFilter('deleted_at', null)
+        .neq('status', 'available')
         .or(
           [
-            'status.eq.available',
             'seller_id.eq.${_me.id}',
             if (kept.isNotEmpty) 'id.in.(${kept.join(',')})',
           ].join(','),
-        )
-        .eq('moderation_state', 'visible')
-        .isFilter('deleted_at', null)
-        .order('created_at', ascending: false);
+        );
+    // Two separate requests, deduplicated by id: the neq/eq split above
+    // keeps them mutually exclusive in a real Postgres filter, but nothing
+    // guarantees that everywhere a `.select()` might be intercepted (tests),
+    // and resolving the same photo twice is wasted work either way.
+    final byId = <String, Map<String, dynamic>>{};
+    for (final r in [...availableRows, ...keptRows]) {
+      byId[r['id'] as String] = r;
+    }
+    final rows = byId.values.toList()
+      ..sort(
+        (a, b) => (b['created_at'] as String? ?? '').compareTo(
+          a['created_at'] as String? ?? '',
+        ),
+      );
     _listings = await Future.wait([for (final r in rows) _listingFromRow(r)]);
+  }
+
+  /// Fetches the next page of the "available" feed and appends it. A no-op
+  /// while a page is already loading, once there is nothing more, or in the
+  /// demo (its whole catalog is already loaded).
+  Future<void> loadMoreListings() async {
+    if (isDemo || _loadingMoreListings || !_hasMoreListings) return;
+    final cursor = _feedCursor;
+    if (cursor == null) {
+      _hasMoreListings = false;
+      return;
+    }
+    _requireConfirmedAccount();
+    _loadingMoreListings = true;
+    try {
+      // ponytail: cursors only on created_at, so two listings posted in the
+      // same instant could rarely skip or repeat across pages. Add id as a
+      // tiebreaker (an `.or()` of the compound comparison) if that shows up.
+      final rows = await _db
+          .from('listings')
+          .select()
+          .eq('university_id', _universityId!)
+          .eq('status', 'available')
+          .eq('moderation_state', 'visible')
+          .isFilter('deleted_at', null)
+          .lt('created_at', cursor.createdAt)
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(_feedPageSize);
+      _hasMoreListings = rows.length == _feedPageSize;
+      if (rows.isNotEmpty) {
+        _feedCursor = (
+          createdAt: rows.last['created_at'] as String? ?? '',
+          id: rows.last['id'] as String,
+        );
+        final existingIds = _listings.map((l) => l.id).toSet();
+        final more = await Future.wait([
+          for (final r in rows) _listingFromRow(r),
+        ]);
+        _listings.addAll(more.where((l) => !existingIds.contains(l.id)));
+        notifyListeners();
+      }
+    } finally {
+      _loadingMoreListings = false;
+    }
   }
 
   Future<Listing> _listingFromRow(Map<String, dynamic> r) async {
@@ -514,7 +610,17 @@ class Repository extends ChangeNotifier {
         }
       }),
     );
-    final images = resolved.whereType<String>().toList();
+    // A photo may fail to resolve (storage outage); drop it and its raw
+    // path together so the two lists stay in step.
+    final images = <String>[];
+    final imagePaths = <String>[];
+    for (var i = 0; i < paths.length; i++) {
+      final resolvedPath = resolved[i];
+      if (resolvedPath != null) {
+        images.add(resolvedPath);
+        imagePaths.add(paths[i]);
+      }
+    }
     return Listing(
       id: r['id'] as String,
       icon: _iconForCategory(r['category'] as String),
@@ -533,6 +639,7 @@ class Repository extends ChangeNotifier {
       status: r['status'] as String? ?? 'available',
       imageSource: images.firstOrNull,
       images: images,
+      imagePaths: imagePaths,
       createdAt: DateTime.tryParse(r['created_at'] as String? ?? ''),
     );
   }
@@ -713,15 +820,34 @@ class Repository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Fetches every conversation's messages and offers in three queries
+  /// total, not two per conversation — the Inbox polls this every 15s, so an
+  /// N+1 pattern here gets slower and pricier as a student's chat history
+  /// grows, not just as they get more *active* chats.
   Future<void> _refreshConversations([int attempt = 0]) async {
     final revision = _conversationRevision;
     final rows = await _db
         .from('conversations')
         .select()
         .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}');
+    final ids = [for (final r in rows) r['id'] as String];
     final list = <Conversation>[];
-    for (final r in rows) {
-      list.add(await _hydrateConversation(r));
+    if (ids.isNotEmpty) {
+      final msgRows = await _db
+          .from('messages')
+          .select()
+          .inFilter('conversation_id', ids)
+          .order('created_at');
+      final offers = await _offersForMessages(msgRows);
+      final byConversation = <String, List<Map<String, dynamic>>>{};
+      for (final m in msgRows) {
+        (byConversation[m['conversation_id'] as String] ??= []).add(m);
+      }
+      for (final r in rows) {
+        list.add(
+          _conversationFromRow(r, byConversation[r['id']] ?? const [], offers),
+        );
+      }
     }
     // Another refresh or confirmed write won while this snapshot was loading.
     // Preserve the newer cache and fetch again so a realtime event is not lost.
@@ -736,7 +862,34 @@ class Repository extends ChangeNotifier {
     _conversationRevision++;
   }
 
+  Future<Map<String, Map<String, dynamic>>> _offersForMessages(
+    List<Map<String, dynamic>> msgRows,
+  ) async {
+    final offerIds = [
+      for (final m in msgRows)
+        if (m['offer_id'] != null) m['offer_id'] as String,
+    ];
+    if (offerIds.isEmpty) return const {};
+    final offerRows = await _db.from('offers').select().inFilter('id', offerIds);
+    return {for (final o in offerRows) o['id'] as String: o};
+  }
+
   Future<Conversation> _hydrateConversation(Map<String, dynamic> row) async {
+    final id = row['id'] as String;
+    final msgRows = await _db
+        .from('messages')
+        .select()
+        .eq('conversation_id', id)
+        .order('created_at');
+    final offers = await _offersForMessages(msgRows);
+    return _conversationFromRow(row, msgRows, offers);
+  }
+
+  Conversation _conversationFromRow(
+    Map<String, dynamic> row,
+    List<Map<String, dynamic>> msgRows,
+    Map<String, Map<String, dynamic>> offers,
+  ) {
     final id = row['id'] as String;
     final listingId = row['listing_id'] as String;
     final buyerId = row['buyer_id'] as String;
@@ -744,25 +897,6 @@ class Repository extends ChangeNotifier {
     // "sellerId" here means "the other party in the thread" — whichever of
     // buyer/seller isn't me — since I might be either one.
     final otherId = buyerId == _me.id ? sellerId : buyerId;
-
-    final msgRows = await _db
-        .from('messages')
-        .select()
-        .eq('conversation_id', id)
-        .order('created_at');
-
-    final offerIds = [
-      for (final m in msgRows)
-        if (m['offer_id'] != null) m['offer_id'] as String,
-    ];
-    var offers = <String, Map<String, dynamic>>{};
-    if (offerIds.isNotEmpty) {
-      final offerRows = await _db
-          .from('offers')
-          .select()
-          .inFilter('id', offerIds);
-      offers = {for (final o in offerRows) o['id'] as String: o};
-    }
 
     final messages = [
       for (final m in msgRows) _messageFromRow(m, offers, listingId),

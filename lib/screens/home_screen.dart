@@ -22,6 +22,19 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   String category = 'All';
+  bool _loadingMore = false;
+
+  Future<void> _loadMore() async {
+    setState(() => _loadingMore = true);
+    try {
+      await context.read<Repository>().loadMoreListings();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _loadingMore = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final repo = context.watch<Repository>();
@@ -258,6 +271,20 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                   ),
+                  // Only the unfiltered feed pages further; a category is a
+                  // client-side filter over what's already loaded.
+                  if (category == 'All' && repo.hasMoreListings)
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(gutter, 4, gutter, bottomPad),
+                      child: Center(
+                        child: TextButton(
+                          onPressed: _loadingMore ? null : _loadMore,
+                          child: Text(
+                            _loadingMore ? 'Loading…' : 'Load more listings',
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -34,6 +34,7 @@ class Listing {
     universityId: v['universityId'],
     imageSource: v['imageSource'],
     images: (v['images'] as List?)?.cast<String>() ?? const [],
+    imagePaths: (v['imagePaths'] as List?)?.cast<String>() ?? const [],
     status: v['status'],
     createdAt: DateTime.tryParse(v['createdAt'] as String? ?? ''),
   );
@@ -43,6 +44,12 @@ class Listing {
   /// All photos, cover first. `imageSource == images.firstOrNull`; kept
   /// separate so every existing single-photo display site is untouched.
   final List<String> images;
+
+  /// The storage path behind each of [images], same order. Editing must
+  /// resend these, not the signed display URL, which the server rejects
+  /// and which expires anyway. Empty when [images] already are raw paths
+  /// or asset paths (the demo repository never resolves them).
+  final List<String> imagePaths;
   final String status;
 
   /// When it was posted; null for listings saved before this was tracked.
@@ -53,6 +60,7 @@ class Listing {
     this.universityId = '',
     this.imageSource,
     this.images = const [],
+    this.imagePaths = const [],
     this.status = 'available',
     this.createdAt,
     required this.icon,
@@ -104,6 +112,7 @@ extension ListingJson on Listing {
     'universityId': universityId,
     'imageSource': imageSource,
     'images': images,
+    'imagePaths': imagePaths,
     'status': status,
     'createdAt': createdAt?.toIso8601String(),
   };

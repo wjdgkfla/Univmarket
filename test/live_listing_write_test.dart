@@ -488,6 +488,30 @@ void main() {
     },
   );
   test(
+    'a private photo exposes its raw storage path separately from the signed display URL',
+    () async {
+      final f = await fixture(privatePhoto: true);
+      final listing = f.repo.getListing('listing-b')!;
+      expect(listing.imagePaths, ['school-b/student/book.jpg']);
+      expect(listing.images.single, isNot('school-b/student/book.jpg'));
+    },
+  );
+  test(
+    'editing a listing with a private photo resends its stored path, not the signed URL',
+    () async {
+      // Repository-level equivalent of the same fix, without driving the
+      // widget tree: exercises createListing exactly as SellScreen now
+      // calls it (imagePaths, not the resolved display images).
+      final f = await fixture(privatePhoto: true);
+      final listing = f.repo.getListing('listing-b')!;
+      await save(f.repo, id: 'listing-b', photo: listing.imagePaths.single);
+      final write = f.requests.singleWhere((r) => r.method == 'PATCH');
+      final body = jsonDecode(write.body) as Map;
+      expect(body['cover_image_url'], 'school-b/student/book.jpg');
+      expect(body['image_urls'], ['school-b/student/book.jpg']);
+    },
+  );
+  test(
     'zero-row edit is reported and keeps cached listing unchanged',
     () async {
       final f = await fixture(rejectUpdates: true);

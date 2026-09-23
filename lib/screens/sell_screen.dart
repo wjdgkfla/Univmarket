@@ -30,7 +30,11 @@ class _SellScreenState extends State<SellScreen> {
       customPickup = TextEditingController();
   String category = 'Electronics';
   String? zone;
-  final photos = <String>[];
+  // display: what to render as a thumbnail. source: what to send on save —
+  // a data: URI for a newly picked photo, otherwise the storage path (not
+  // the signed display URL, which the server would reject and which
+  // expires anyway).
+  final photos = <({String display, String source})>[];
   Condition condition = Condition.good;
   bool saving = false;
   @override
@@ -54,9 +58,15 @@ class _SellScreenState extends State<SellScreen> {
         zone = _customPickupOption;
         customPickup.text = listing.zone;
       }
-      photos.addAll(
-        listing.images.isNotEmpty ? listing.images : [?listing.imageSource],
-      );
+      final display = listing.images.isNotEmpty
+          ? listing.images
+          : [?listing.imageSource];
+      final sources = listing.imagePaths.length == display.length
+          ? listing.imagePaths
+          : display;
+      for (var i = 0; i < display.length; i++) {
+        photos.add((display: display[i], source: sources[i]));
+      }
     }
   }
 
@@ -85,7 +95,11 @@ class _SellScreenState extends State<SellScreen> {
       if (file == null) return;
       final bytes = await file.readAsBytes();
       final selected = ListingPhoto.fromBytes(bytes);
-      if (mounted) setState(() => photos.add(selected.dataUri));
+      if (mounted) {
+        setState(
+          () => photos.add((display: selected.dataUri, source: selected.dataUri)),
+        );
+      }
     } catch (e) {
       error(e);
     }
@@ -104,7 +118,7 @@ class _SellScreenState extends State<SellScreen> {
         acceptsTrades: false,
         pickupZoneName: zone == _customPickupOption ? null : zone,
         customPickup: zone == _customPickupOption ? customPickup.text : null,
-        imageSources: photos,
+        imageSources: [for (final p in photos) p.source],
         editingId: widget.editingId,
       );
       if (!mounted) return;
@@ -320,9 +334,11 @@ class _SellScreenState extends State<SellScreen> {
                             ),
                           );
                         }
-                        final src = photos[index];
+                        final photo = photos[index];
                         return Padding(
-                          key: ValueKey(src),
+                          // Two identical picks share a source; key by
+                          // position so duplicates don't collide.
+                          key: ValueKey('photo-$index-${photo.source}'),
                           padding: const EdgeInsets.only(right: 10),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(
@@ -336,7 +352,7 @@ class _SellScreenState extends State<SellScreen> {
                                 children: [
                                   ColoredBox(
                                     color: c.surface2,
-                                    child: photoPreview(src),
+                                    child: photoPreview(photo.display),
                                   ),
                                   if (index == 0)
                                     Positioned(
@@ -370,7 +386,7 @@ class _SellScreenState extends State<SellScreen> {
                                         onTap: saving
                                             ? null
                                             : () => setState(
-                                                () => photos.remove(src),
+                                                () => photos.removeAt(index),
                                               ),
                                         child: Container(
                                           width: 22,

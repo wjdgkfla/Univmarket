@@ -145,14 +145,28 @@ void main() {
         (r) => r.url.path.endsWith('/pickup_zones'),
       );
       expect(zoneRequest.url.queryParameters['campus_id'], 'eq.campus-b');
-      final feedRequest = requests.singleWhere(
-        (r) => r.url.path.endsWith('/listings'),
+      final feedRequests = requests
+          .where((r) => r.url.path.endsWith('/listings'))
+          .toList();
+      // The paginated "available" page and the small "mine + saved/chatted"
+      // page are two separate requests, so neither's URL grows with the
+      // other — see 20260923... bug #5 in the audit.
+      expect(feedRequests, hasLength(2));
+      final availableRequest = feedRequests.singleWhere(
+        (r) => r.url.queryParameters['status'] == 'eq.available',
       );
-      expect(feedRequest.url.queryParameters['university_id'], 'eq.school-b');
+      expect(
+        availableRequest.url.queryParameters['university_id'],
+        'eq.school-b',
+      );
+      final keptRequest = feedRequests.singleWhere(
+        (r) => r.url.queryParameters.containsKey('or'),
+      );
+      expect(keptRequest.url.queryParameters['university_id'], 'eq.school-b');
       // Saved (and chatted-about) items stay loaded after they are reserved.
       expect(
-        feedRequest.url.queryParameters['or'],
-        '(status.eq.available,seller_id.eq.student,id.in.(saved-reserved))',
+        keptRequest.url.queryParameters['or'],
+        '(seller_id.eq.student,id.in.(saved-reserved))',
       );
       expect(repo.listListings().single.universityId, 'school-b');
       expect(
