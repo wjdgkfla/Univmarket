@@ -261,15 +261,12 @@ class _SellScreenState extends State<SellScreen> {
                       buildDefaultDragHandles: true,
                       itemCount:
                           photos.length + (photos.length < _maxPhotos ? 1 : 0),
-                      onReorder: (oldIndex, newIndex) {
+                      onReorderItem: (oldIndex, newIndex) {
                         // The trailing "add" tile is not reorderable.
-                        if (oldIndex >= photos.length ||
-                            newIndex > photos.length) {
-                          return;
-                        }
+                        if (oldIndex >= photos.length) return;
                         setState(() {
-                          if (newIndex > oldIndex) newIndex -= 1;
-                          photos.insert(newIndex, photos.removeAt(oldIndex));
+                          final item = photos.removeAt(oldIndex);
+                          photos.insert(newIndex.clamp(0, photos.length), item);
                         });
                       },
                       itemBuilder: (context, index) {
