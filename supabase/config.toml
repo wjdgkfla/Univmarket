@@ -72,3 +72,8 @@ deno_version = 2
 enabled = true
 port = 54327
 backend = "postgres"
+
+# The gateway JWT check is off because the caller is pg_cron, not a user;
+# the function authorizes each run with the Vault token instead.
+[functions.cleanup-listing-photos]
+verify_jwt = false
