@@ -37,11 +37,16 @@ select pg_temp.check('a random push notification token was generated',
  (select length(value) from token) = 72);
 create temp table queued as select count(*) as n from net.http_request_queue;
 
--- No project URL yet (local/CI default): a message queues nothing.
+-- No project URL yet (local/CI default): the message still logs a
+-- notification row (that part never depended on push being configured),
+-- but nothing is queued to actually deliver it.
 set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 select create_message('chat','Is this still available?');
 reset role;
+select pg_temp.check('a message still logs a notification row without push configured',
+ exists(select 1 from notifications where user_id='20000000-0000-0000-0000-000000000002'
+   and body='Is this still available?'));
 select pg_temp.check('no project URL, no push call',
  (select count(*) from net.http_request_queue) = (select n from queued));
 
@@ -51,7 +56,7 @@ set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 select create_message('chat','Second message, no device yet');
 reset role;
-select pg_temp.check('a new message queues one call to send-push',
+select pg_temp.check('a new notification queues one call to send-push',
  (select count(*) from net.http_request_queue) = (select n from queued) + 1
  and exists(select 1 from net.http_request_queue
    where url = 'https://example.test/functions/v1/send-push'
@@ -60,13 +65,12 @@ select pg_temp.check('a new message queues one call to send-push',
 set local role service_role;
 select pg_temp.check('no registered device means nothing to send',
  push_notification_details((select value from token),
-   (select id from messages where body='Second message, no device yet')) is null);
+   (select id from notifications where body='Second message, no device yet')) is null);
 reset role;
 
 -- Register the recipient's device, then a text message resolves to a
 -- notification naming the sender and carrying the chat's deep link.
-insert into device_push_tokens(user_id,platform,token) values
-('20000000-0000-0000-0000-000000000002','ios','device-token-1');
+update profiles set fcm_token='device-token-1' where id='20000000-0000-0000-0000-000000000002';
 set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 select create_message('chat','Third message, now with a device');
@@ -74,7 +78,7 @@ reset role;
 set local role service_role;
 create temp table text_push as select push_notification_details(
   (select value from token),
-  (select id from messages where body='Third message, now with a device')
+  (select id from notifications where body='Third message, now with a device')
 ) as d;
 select pg_temp.check('a text message notifies the recipient''s device with the sender''s name',
  (select d->>'title' from text_push)='Buyer sent a message');
@@ -82,8 +86,8 @@ select pg_temp.check('the body previews the message',
  (select d->>'body' from text_push)='Third message, now with a device');
 select pg_temp.check('the link opens the right chat',
  (select d->>'link' from text_push)='/chat/chat');
-select pg_temp.check('the seller''s one device token is included',
- (select d->'tokens' from text_push)='[{"platform":"ios","token":"device-token-1"}]'::jsonb);
+select pg_temp.check('the registered device token is included',
+ (select d->>'token' from text_push)='device-token-1');
 reset role;
 
 -- An offer names the listing instead of echoing the offer body.
@@ -94,7 +98,7 @@ reset role;
 set local role service_role;
 create temp table offer_push as select push_notification_details(
   (select value from token),
-  (select id from messages where type='offer' order by created_at desc limit 1)
+  (select id from notifications order by created_at desc limit 1)
 ) as d;
 select pg_temp.check('an offer notification names the listing, not "Sent an offer"',
  (select d->>'title' from offer_push)='Buyer sent an offer'
@@ -108,11 +112,8 @@ set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 select create_message('chat','Fourth message, messages turned off');
 reset role;
-set local role service_role;
-select pg_temp.check('a disabled category is honored',
- push_notification_details((select value from token),
-   (select id from messages where body='Fourth message, messages turned off')) is null);
-reset role;
+select pg_temp.check('a disabled category logs no notification at all',
+ not exists(select 1 from notifications where body='Fourth message, messages turned off'));
 
 -- Authorization: only the trigger's own token unlocks this function.
 set local role anon;
