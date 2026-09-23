@@ -151,21 +151,26 @@ select pg_temp.check('no public policy evaluates auth.uid() per row',
   and (qual ~ '(?<!SELECT )auth\.uid\(\)' or with_check ~ '(?<!SELECT )auth\.uid\(\)')));
 
 -- Multiple photos, a real "Other" category, and a free-text pickup spot.
+-- 'sell' is 'sold' by this point in the script (see above), so the owner
+-- update policy would make any UPDATE on it a silent 0-row no-op; 'cancel'
+-- is back to 'available' and stays editable for the rest of the file.
 set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
-select pg_temp.probe('a second own photo on the same listing is accepted',
-$q$update listings set
+-- Not a probe: this must actually persist for the later read-access check.
+update listings set
   image_urls=array['10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/0123456789abcdef0123456789abcdef.jpg',
     '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/ffffffffffffffffffffffffffffffff.jpg'],
   cover_image_url='10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/0123456789abcdef0123456789abcdef.jpg'
- where id='sell'$q$);
+ where id='cancel';
+select pg_temp.check('a second own photo on the same listing is accepted',
+ (select cardinality(image_urls) from listings where id='cancel')=2);
 select pg_temp.probe('more than 6 photos rejected',
 $q$update listings set image_urls=(select array_agg('10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/'||
-  lpad(to_hex(n),32,'0')||'.jpg') from generate_series(1,7) n) where id='sell'$q$,'23514');
+  lpad(to_hex(n),32,'0')||'.jpg') from generate_series(1,7) n) where id='cancel'$q$,'23514');
 select pg_temp.probe('a second photo from someone else''s folder is rejected',
-$q$update listings set image_urls=image_urls || '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000002/0123456789abcdef0123456789abcdef.jpg' where id='sell'$q$,'23514');
+$q$update listings set image_urls=image_urls || '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000002/0123456789abcdef0123456789abcdef.jpg' where id='cancel'$q$,'23514');
 select pg_temp.probe('cover must be the first photo',
-$q$update listings set cover_image_url='10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/ffffffffffffffffffffffffffffffff.jpg' where id='sell'$q$,'23514');
+$q$update listings set cover_image_url='10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/ffffffffffffffffffffffffffffffff.jpg' where id='cancel'$q$,'23514');
 select pg_temp.probe('"Other" is a real, selectable category',
 $q$update listings set category='Other' where id='cancel'$q$);
 select pg_temp.probe('an unrecognized category is still rejected',
