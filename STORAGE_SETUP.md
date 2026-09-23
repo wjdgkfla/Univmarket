@@ -10,7 +10,7 @@ Required provisioning and verification:
 - Insert policy must independently validate a confirmed, active, nonanonymous account, server-owned university membership, and both path prefixes. Client-side path checks are not authorization.
 - Read/sign policy must permit the owner and authorized students viewing a visible, nondeleted listing in their university. Do not grant public reads or rely solely on a guessed object path.
 - Preserve existing objects while deploying policies. Test owner, another user at the same university, another university, anonymous, suspended and unconfirmed accounts.
-- Implement orphan-object cleanup for uploads whose listing write fails or whose photo is replaced. Do not delete immediately after an ambiguous network failure: the listing write may have committed.
+- Orphan cleanup runs nightly at 08:17 UTC: pg_cron calls the `cleanup-listing-photos` Edge Function, which deletes (through the Storage API) photos no live listing uses once they are 24 hours old: deleted listings and accounts, replaced photos, and uploads whose listing write failed. The grace period covers an ambiguous network failure where the write may have committed. See `20260923072453_listing_photo_cleanup.sql` and `supabase/operations/configure_photo_cleanup.sql`.
 - Signed viewing URLs last one hour. Add refresh/expiry handling for long-lived app sessions, and test refresh after background/resume. A signing failure currently shows the normal missing-photo fallback without reporting a successful listing write as failed.
 - Validate actual image decoding and review metadata stripping before launch. Current format checks identify JPEG/PNG signatures and size; they do not guarantee image integrity.
 
