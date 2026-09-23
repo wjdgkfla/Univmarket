@@ -18,13 +18,19 @@ class SellScreen extends StatefulWidget {
   State<SellScreen> createState() => _SellScreenState();
 }
 
+/// Dropdown sentinel for "type your own pickup spot".
+const _customPickupOption = '\u0000custom';
+const _maxPhotos = 6;
+
 class _SellScreenState extends State<SellScreen> {
   final form = GlobalKey<FormState>();
   final title = TextEditingController(),
       price = TextEditingController(),
-      description = TextEditingController();
+      description = TextEditingController(),
+      customPickup = TextEditingController();
   String category = 'Electronics';
-  String? zone, photo;
+  String? zone;
+  final photos = <String>[];
   Condition condition = Condition.good;
   bool saving = false;
   @override
@@ -41,9 +47,16 @@ class _SellScreenState extends State<SellScreen> {
       description.text = listing.description;
       category = listing.tag;
       condition = listing.condition;
-      // A pickup spot removed since posting must not break the dropdown.
-      if (repo.pickupZones.contains(listing.zone)) zone = listing.zone;
-      photo = listing.imageSource;
+      if (repo.pickupZones.contains(listing.zone)) {
+        zone = listing.zone;
+      } else if (listing.zone.isNotEmpty) {
+        // A removed zone, or a custom spot: keep it editable as free text.
+        zone = _customPickupOption;
+        customPickup.text = listing.zone;
+      }
+      photos.addAll(
+        listing.images.isNotEmpty ? listing.images : [?listing.imageSource],
+      );
     }
   }
 
@@ -52,6 +65,7 @@ class _SellScreenState extends State<SellScreen> {
     title.dispose();
     price.dispose();
     description.dispose();
+    customPickup.dispose();
     super.dispose();
   }
 
@@ -60,6 +74,7 @@ class _SellScreenState extends State<SellScreen> {
   }
 
   Future<void> choosePhoto() async {
+    if (photos.length >= _maxPhotos) return;
     try {
       final file = await ImagePicker().pickImage(
         source: ImageSource.gallery,
@@ -70,7 +85,7 @@ class _SellScreenState extends State<SellScreen> {
       if (file == null) return;
       final bytes = await file.readAsBytes();
       final selected = ListingPhoto.fromBytes(bytes);
-      if (mounted) setState(() => photo = selected.dataUri);
+      if (mounted) setState(() => photos.add(selected.dataUri));
     } catch (e) {
       error(e);
     }
@@ -87,8 +102,9 @@ class _SellScreenState extends State<SellScreen> {
         category: category,
         description: description.text,
         acceptsTrades: false,
-        pickupZoneName: zone!,
-        imageSource: photo,
+        pickupZoneName: zone == _customPickupOption ? null : zone,
+        customPickup: zone == _customPickupOption ? customPickup.text : null,
+        imageSources: photos,
         editingId: widget.editingId,
       );
       if (!mounted) return;
@@ -99,8 +115,9 @@ class _SellScreenState extends State<SellScreen> {
         title.clear();
         price.clear();
         description.clear();
+        customPickup.clear();
         setState(() {
-          photo = null;
+          photos.clear();
           category = 'Electronics';
           condition = Condition.good;
           zone = context.read<Repository>().pickupZones.firstOrNull;
@@ -161,23 +178,30 @@ class _SellScreenState extends State<SellScreen> {
       ),
     );
 
-    final Widget preview = photo == null
-        ? const SizedBox.shrink()
-        : photo!.startsWith('data:')
-        ? Image.memory(base64Decode(photo!.split(',').last), fit: BoxFit.cover)
-        : photo!.startsWith('https://')
-        ? Image.network(
-            photo!,
+    Widget photoFallback() => Center(
+      child: Text(
+        'Photo unavailable',
+        textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 12, color: c.inkSoft),
+      ),
+    );
+    Widget photoPreview(String src) => src.startsWith('data:')
+        ? Image.memory(
+            base64Decode(src.split(',').last),
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => Center(
-              child: Text(
-                'Photo unavailable',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: c.inkSoft),
-              ),
-            ),
+            errorBuilder: (_, _, _) => photoFallback(),
           )
-        : Image.asset(photo!, fit: BoxFit.cover);
+        : src.startsWith('https://')
+        ? Image.network(
+            src,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => photoFallback(),
+          )
+        : Image.asset(
+            src,
+            fit: BoxFit.cover,
+            errorBuilder: (_, _, _) => photoFallback(),
+          );
 
     return ScreenScaffold(
       navClearance: !editingMode,
@@ -219,88 +243,161 @@ class _SellScreenState extends State<SellScreen> {
                     ],
                   ),
                   const SizedBox(height: 18),
-                  Row(
-                    children: [
-                      Semantics(
-                        button: true,
-                        label: photo == null ? 'Add a photo' : 'Change photo',
-                        excludeSemantics: true,
-                        child: Material(
-                          color: c.surface2,
-                          borderRadius: BorderRadius.circular(AppRadius.photo),
-                          clipBehavior: Clip.antiAlias,
-                          child: InkWell(
-                            onTap: saving ? null : choosePhoto,
-                            child: SizedBox(
-                              width: 104,
-                              height: 104,
-                              child: MediaQuery.withClampedTextScaling(
-                                maxScaleFactor: 1.2,
-                                child: photo != null
-                                    ? Stack(
-                                        fit: StackFit.expand,
-                                        children: [
-                                          preview,
-                                          Positioned(
-                                            left: 0,
-                                            right: 0,
-                                            bottom: 0,
-                                            child: Container(
-                                              color: const Color(0x99111214),
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    vertical: 4,
-                                                  ),
-                                              child: const Text(
-                                                'Change',
-                                                textAlign: TextAlign.center,
-                                                style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      )
-                                    : Column(
+                  Text(
+                    photos.isEmpty
+                        ? 'Add up to $_maxPhotos photos. A clear, well-lit first photo helps your item sell faster.'
+                        : 'Long-press a photo to reorder. The first is the cover.',
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      height: 1.4,
+                      color: c.inkSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 104,
+                    child: ReorderableListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      buildDefaultDragHandles: true,
+                      itemCount:
+                          photos.length + (photos.length < _maxPhotos ? 1 : 0),
+                      onReorder: (oldIndex, newIndex) {
+                        // The trailing "add" tile is not reorderable.
+                        if (oldIndex >= photos.length ||
+                            newIndex > photos.length) {
+                          return;
+                        }
+                        setState(() {
+                          if (newIndex > oldIndex) newIndex -= 1;
+                          photos.insert(newIndex, photos.removeAt(oldIndex));
+                        });
+                      },
+                      itemBuilder: (context, index) {
+                        if (index == photos.length) {
+                          return Padding(
+                            key: const ValueKey('add-photo'),
+                            padding: const EdgeInsets.only(right: 10),
+                            child: Semantics(
+                              button: true,
+                              label: 'Add a photo',
+                              excludeSemantics: true,
+                              child: Material(
+                                color: c.surface2,
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.photo,
+                                ),
+                                clipBehavior: Clip.antiAlias,
+                                child: InkWell(
+                                  onTap: saving ? null : choosePhoto,
+                                  child: SizedBox(
+                                    width: 96,
+                                    height: 96,
+                                    child: MediaQuery.withClampedTextScaling(
+                                      maxScaleFactor: 1.2,
+                                      child: Column(
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
                                           Icon(
                                             CupertinoIcons.camera,
-                                            size: 26,
+                                            size: 24,
                                             color: c.ink,
                                           ),
                                           const SizedBox(height: 6),
                                           Text(
-                                            'Add photo',
+                                            photos.isEmpty
+                                                ? 'Add photo'
+                                                : 'Add',
                                             style: TextStyle(
-                                              fontSize: 13,
+                                              fontSize: 12.5,
                                               fontWeight: FontWeight.w600,
                                               color: c.ink,
                                             ),
                                           ),
                                         ],
                                       ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+                        final src = photos[index];
+                        return Padding(
+                          key: ValueKey(src),
+                          padding: const EdgeInsets.only(right: 10),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.photo,
+                            ),
+                            child: SizedBox(
+                              width: 96,
+                              height: 96,
+                              child: Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  ColoredBox(
+                                    color: c.surface2,
+                                    child: photoPreview(src),
+                                  ),
+                                  if (index == 0)
+                                    Positioned(
+                                      left: 0,
+                                      right: 0,
+                                      bottom: 0,
+                                      child: Container(
+                                        color: const Color(0x99111214),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 3,
+                                        ),
+                                        child: const Text(
+                                          'Cover',
+                                          textAlign: TextAlign.center,
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  Positioned(
+                                    right: 3,
+                                    top: 3,
+                                    child: Semantics(
+                                      button: true,
+                                      label: 'Remove photo',
+                                      excludeSemantics: true,
+                                      child: GestureDetector(
+                                        onTap: saving
+                                            ? null
+                                            : () => setState(
+                                                () => photos.remove(src),
+                                              ),
+                                        child: Container(
+                                          width: 22,
+                                          height: 22,
+                                          decoration: const BoxDecoration(
+                                            color: Color(0xB3111214),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(
+                                            CupertinoIcons.xmark,
+                                            size: 13,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          'A clear, well-lit photo helps your item sell faster.',
-                          style: TextStyle(
-                            fontSize: 13.5,
-                            height: 1.4,
-                            color: c.inkSoft,
-                          ),
-                        ),
-                      ),
-                    ],
+                        );
+                      },
+                    ),
                   ),
                   label('Details'),
                   TextFormField(
@@ -391,12 +488,43 @@ class _SellScreenState extends State<SellScreen> {
                         color: c.inkSoft,
                       ),
                     ),
-                    items: repo.pickupZones
-                        .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                        .toList(),
+                    items: [
+                      for (final v in repo.pickupZones)
+                        DropdownMenuItem(value: v, child: Text(v)),
+                      const DropdownMenuItem(
+                        value: _customPickupOption,
+                        child: Text('Other — type a building name'),
+                      ),
+                    ],
                     validator: (v) =>
                         v == null ? 'Choose a pickup location.' : null,
-                    onChanged: saving ? null : (v) => zone = v,
+                    onChanged: saving ? null : (v) => setState(() => zone = v),
+                  ),
+                  AnimatedSize(
+                    duration: AppMotion.of(context, AppMotion.base),
+                    curve: AppMotion.curve,
+                    alignment: Alignment.topCenter,
+                    child: zone != _customPickupOption
+                        ? const SizedBox(width: double.infinity)
+                        : Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: TextFormField(
+                              key: const Key('sell-custom-pickup'),
+                              enabled: !saving,
+                              controller: customPickup,
+                              textCapitalization: TextCapitalization.words,
+                              maxLength: 80,
+                              decoration: const InputDecoration(
+                                labelText: 'Building or spot name',
+                                hintText: 'e.g. Fenwick Library lobby',
+                              ),
+                              validator: (v) =>
+                                  zone == _customPickupOption &&
+                                      (v?.trim().length ?? 0) < 3
+                                  ? 'Use at least 3 characters.'
+                                  : null,
+                            ),
+                          ),
                   ),
                   const SizedBox(height: 28),
                   FilledButton(

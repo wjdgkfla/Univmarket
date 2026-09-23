@@ -435,8 +435,9 @@ class DemoRepository extends Repository {
     required String category,
     required String description,
     required bool acceptsTrades,
-    required String pickupZoneName,
-    String? imageSource,
+    String? pickupZoneName,
+    String? customPickup,
+    List<String> imageSources = const [],
     String? editingId,
   }) async {
     if (title.trim().length < 3 || title.trim().length > 100) {
@@ -448,9 +449,19 @@ class DemoRepository extends Repository {
     if (description.trim().length < 10 || description.length > 2000) {
       throw ArgumentError('Description must be 10–2000 characters.');
     }
-    if (!categories.contains(category) ||
-        !pickupZones.contains(pickupZoneName)) {
-      throw ArgumentError('Choose a valid category and pickup location.');
+    if (!categories.contains(category)) {
+      throw ArgumentError('Choose a valid category.');
+    }
+    if (imageSources.length > 6) {
+      throw ArgumentError('Use up to 6 photos.');
+    }
+    final String pickup;
+    if (pickupZoneName != null && pickupZones.contains(pickupZoneName)) {
+      pickup = pickupZoneName;
+    } else if (customPickup != null && customPickup.trim().length >= 3) {
+      pickup = customPickup.trim();
+    } else {
+      throw ArgumentError('Choose or enter a pickup location.');
     }
     final existing = editingId == null ? null : getListing(editingId);
     if (editingId != null && (existing == null || existing.sellerId != me.id)) {
@@ -462,13 +473,14 @@ class DemoRepository extends Repository {
       title: title.trim(),
       price: price,
       condition: condition,
-      zone: pickupZoneName,
+      zone: pickup,
       tag: category,
       trades: acceptsTrades,
       description: description.trim(),
       sellerId: me.id,
       universityId: _school,
-      imageSource: imageSource,
+      imageSource: imageSources.firstOrNull,
+      images: imageSources,
       status: existing?.status ?? 'available',
       createdAt: existing?.createdAt ?? DateTime.now(),
     );

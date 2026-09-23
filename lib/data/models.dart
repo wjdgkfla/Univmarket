@@ -33,11 +33,16 @@ class Listing {
     sellerId: v['sellerId'],
     universityId: v['universityId'],
     imageSource: v['imageSource'],
+    images: (v['images'] as List?)?.cast<String>() ?? const [],
     status: v['status'],
     createdAt: DateTime.tryParse(v['createdAt'] as String? ?? ''),
   );
   final String universityId;
   final String? imageSource;
+
+  /// All photos, cover first. `imageSource == images.firstOrNull`; kept
+  /// separate so every existing single-photo display site is untouched.
+  final List<String> images;
   final String status;
 
   /// When it was posted; null for listings saved before this was tracked.
@@ -47,6 +52,7 @@ class Listing {
     required this.id,
     this.universityId = '',
     this.imageSource,
+    this.images = const [],
     this.status = 'available',
     this.createdAt,
     required this.icon,
@@ -97,6 +103,7 @@ extension ListingJson on Listing {
     'sellerId': sellerId,
     'universityId': universityId,
     'imageSource': imageSource,
+    'images': images,
     'status': status,
     'createdAt': createdAt?.toIso8601String(),
   };

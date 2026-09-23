@@ -150,6 +150,37 @@ select pg_temp.check('no public policy evaluates auth.uid() per row',
  not exists(select 1 from pg_policies where schemaname='public'
   and (qual ~ '(?<!SELECT )auth\.uid\(\)' or with_check ~ '(?<!SELECT )auth\.uid\(\)')));
 
+-- Multiple photos, a real "Other" category, and a free-text pickup spot.
+set local role authenticated;
+set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
+select pg_temp.probe('a second own photo on the same listing is accepted',
+$q$update listings set
+  image_urls=array['10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/0123456789abcdef0123456789abcdef.jpg',
+    '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/ffffffffffffffffffffffffffffffff.jpg'],
+  cover_image_url='10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/0123456789abcdef0123456789abcdef.jpg'
+ where id='sell'$q$);
+select pg_temp.probe('more than 6 photos rejected',
+$q$update listings set image_urls=(select array_agg('10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/'||
+  lpad(to_hex(n),32,'0')||'.jpg') from generate_series(1,7) n) where id='sell'$q$,'23514');
+select pg_temp.probe('a second photo from someone else''s folder is rejected',
+$q$update listings set image_urls=image_urls || '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000002/0123456789abcdef0123456789abcdef.jpg' where id='sell'$q$,'23514');
+select pg_temp.probe('cover must be the first photo',
+$q$update listings set cover_image_url='10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/ffffffffffffffffffffffffffffffff.jpg' where id='sell'$q$,'23514');
+select pg_temp.probe('"Other" is a real, selectable category',
+$q$update listings set category='Other' where id='cancel'$q$);
+select pg_temp.probe('an unrecognized category is still rejected',
+$q$update listings set category='Weapons' where id='cancel'$q$,'23514');
+select pg_temp.probe('a custom pickup spot can stand in for a fixed zone',
+$q$update listings set pickup_zone_id=null, pickup_custom='Room 204, North dorm' where id='cancel'$q$);
+select pg_temp.probe('a too-short custom pickup spot is rejected',
+$q$update listings set pickup_zone_id=null, pickup_custom='NW' where id='cancel'$q$,'23514');
+
+-- A classmate can read every photo on a listing, not only its cover.
+set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000002';
+select pg_temp.check('classmate reads the listing''s second photo too',
+ (select count(*) from storage.objects where name like '%/ffffffffffffffffffffffffffffffff.jpg')=1);
+reset role;
+
 table checks;
 do $$ declare failures text; begin
 select string_agg(label||' ['||actual||']', E'\n') into failures from checks where not passed;

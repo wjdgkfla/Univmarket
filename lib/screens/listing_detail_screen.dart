@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -216,7 +217,9 @@ class ListingDetailScreen extends StatelessWidget {
               stretchModes: const [StretchMode.zoomBackground],
               background: Hero(
                 tag: listingHeroTag(id),
-                child: ListingImage(listing: listing, radius: 0),
+                child: listing.images.length > 1
+                    ? _PhotoGallery(listing: listing)
+                    : ListingImage(listing: listing, radius: 0),
               ),
             ),
           ),
@@ -556,4 +559,112 @@ Widget dialogAction(
   return primary
       ? FilledButton(onPressed: onPressed, child: Text(label))
       : TextButton(onPressed: onPressed, child: Text(label));
+}
+
+/// Swipeable photo gallery for a listing with more than one photo. Only the
+/// first frame flies in the Hero transition from the grid; the rest render
+/// once the page has settled, which reads fine at this transition's speed.
+class _PhotoGallery extends StatefulWidget {
+  const _PhotoGallery({required this.listing});
+  final Listing listing;
+  @override
+  State<_PhotoGallery> createState() => _PhotoGalleryState();
+}
+
+class _PhotoGalleryState extends State<_PhotoGallery> {
+  int _page = 0;
+
+  Widget _frame(String src) {
+    Widget fallback() => const ColoredBox(
+      color: Color(0xFFEBEDF0),
+      child: Center(child: Icon(CupertinoIcons.photo, color: Colors.white)),
+    );
+    if (src.startsWith('data:image/')) {
+      try {
+        return Image.memory(
+          base64Decode(src.split(',').last),
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => fallback(),
+        );
+      } catch (_) {
+        return fallback();
+      }
+    }
+    if (Uri.tryParse(src)?.scheme == 'https') {
+      return Image.network(
+        src,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+        errorBuilder: (_, _, _) => fallback(),
+      );
+    }
+    return Image.asset(
+      src,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => fallback(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final listing = widget.listing;
+    final images = listing.images;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        PageView.builder(
+          itemCount: images.length,
+          onPageChanged: (i) => setState(() => _page = i),
+          itemBuilder: (context, i) => ColoredBox(
+            color: const Color(0xFFEBEDF0),
+            child: _frame(images[i]),
+          ),
+        ),
+        if (listing.status == 'sold')
+          const ColoredBox(
+            color: Color(0x73111214),
+            child: Center(
+              child: Text(
+                'Sold',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ),
+        if (listing.status == 'reserved')
+          const Positioned(
+            left: 8,
+            bottom: 30,
+            child: Pill(label: 'reserved', tone: PillTone.overlay),
+          ),
+        Positioned(
+          bottom: 10,
+          left: 0,
+          right: 0,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              for (var i = 0; i < images.length; i++)
+                AnimatedContainer(
+                  duration: AppMotion.of(context, AppMotion.fast),
+                  curve: AppMotion.curve,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  width: i == _page ? 16 : 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: i == _page ? 0.95 : 0.5,
+                    ),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }

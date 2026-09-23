@@ -35,6 +35,12 @@ from photo where tag in ('live','deleted','sold');
 insert into storage.objects(bucket_id,name,created_at)
 select 'listing-images', name, case when tag='fresh' then now() - interval '1 hour' else now() - interval '2 days' end
 from photo;
+-- A second photo on the live listing, not its cover: cleanup must check
+-- every element of image_urls, not only cover_image_url.
+insert into photo select 'second', '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/' || repeat('f', 32) || '.jpg';
+update listings set image_urls = image_urls || (select name from photo where tag = 'second') where id = 'live';
+insert into storage.objects(bucket_id, name, created_at)
+select 'listing-images', name, now() - interval '2 days' from photo where tag = 'second';
 -- Same age and unreferenced, but in another bucket: never touched.
 insert into storage.buckets(id,name,public) values('other-bucket','other-bucket',false);
 insert into storage.objects(bucket_id,name,created_at) values('other-bucket','x.jpg',now() - interval '2 days');
@@ -65,6 +71,8 @@ select pg_temp.check('replaced or never-posted photo is an orphan',
  exists(select 1 from found join photo using(name) where tag='replaced'));
 select pg_temp.check('photos on live and sold listings are kept',
  not exists(select 1 from found join photo using(name) where tag in ('live','sold')));
+select pg_temp.check('a second, non-cover photo still referenced is kept',
+ not exists(select 1 from found join photo using(name) where tag='second'));
 select pg_temp.check('uploads under 24 hours old are kept',
  not exists(select 1 from found join photo using(name) where tag='fresh'));
 select pg_temp.check('other buckets are never listed',

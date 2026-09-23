@@ -43,6 +43,111 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _message;
   late bool _welcome = widget.showWelcome;
 
+  Widget _codePage(BuildContext context) {
+    final c = context.colors;
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          tooltip: 'Back',
+          icon: const Icon(CupertinoIcons.chevron_back),
+          onPressed: _busy
+              ? null
+              : () => setState(() {
+                  _pendingEmail = null;
+                  _message = null;
+                  _code.clear();
+                }),
+        ),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 460),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _Lockup(),
+                  const SizedBox(height: 28),
+                  Text(
+                    'Check your email',
+                    style: TextStyle(
+                      fontSize: 28,
+                      height: 1.15,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.6,
+                      color: c.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Enter the 6-digit code we sent to $_pendingEmail.',
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.4,
+                      color: c.inkSoft,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  TextField(
+                    key: const Key('auth-code'),
+                    controller: _code,
+                    enabled: !_busy,
+                    autofocus: true,
+                    keyboardType: TextInputType.number,
+                    textAlign: TextAlign.center,
+                    maxLength: 6,
+                    autofillHints: const [AutofillHints.oneTimeCode],
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 8,
+                    ),
+                    decoration: const InputDecoration(counterText: ''),
+                    onSubmitted: (_) => _confirmCode(),
+                    onChanged: (v) {
+                      if (v.length == 6) _confirmCode();
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  if (_message != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Semantics(
+                        liveRegion: true,
+                        child: Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: c.surface2,
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
+                          ),
+                          child: Text(
+                            _message!,
+                            style: const TextStyle(fontSize: 14, height: 1.4),
+                          ),
+                        ),
+                      ),
+                    ),
+                  FilledButton(
+                    onPressed: _busy ? null : _confirmCode,
+                    child: Text(_busy ? 'Please wait…' : 'Confirm'),
+                  ),
+                  TextButton(
+                    onPressed: _busy ? null : _resendCode,
+                    child: const Text('Resend code'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _welcomePage(BuildContext context) {
     final c = context.colors;
     const photos = [
@@ -187,9 +292,7 @@ class _AuthScreenState extends State<AuthScreen> {
         await widget.auth.signUp(email, _password.text, _name.text.trim());
         if (mounted) {
           setState(() {
-            _message =
-                'We sent a confirmation link to $email. Open it, then sign in here. Check your spam folder if you don\'t see it.';
-            _register = false;
+            _pendingEmail = email;
             _password.clear();
           });
         }
@@ -209,16 +312,71 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  /// Set once sign-up succeeds; switches the screen to code entry. A
+  /// clickable confirmation link would let a mail security scanner (e.g.
+  /// Microsoft Safe Links, common on campus email) silently burn it before
+  /// the student ever sees it, so confirmation is a code they type in.
+  String? _pendingEmail;
+  final _code = TextEditingController();
+
+  Future<void> _confirmCode() async {
+    final code = _code.text.trim();
+    if (_busy || code.length != 6) return;
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    try {
+      await widget.auth.confirmSignUp(_pendingEmail!, code);
+      // Success starts a session; LiveAuthGate swaps this screen out.
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _message =
+              'That code is incorrect or has expired. Check '
+              'it and try again, or request a new one.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resendCode() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    try {
+      await widget.auth.resendSignUpCode(_pendingEmail!);
+      if (mounted) setState(() => _message = 'Sent a new code.');
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _message =
+              'Could not send a new code. Check your '
+              'connection and try again.',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   @override
   void dispose() {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _code.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => _welcome
+  Widget build(BuildContext context) => _pendingEmail != null
+      ? _codePage(context)
+      : _welcome
       ? _welcomePage(context)
       : Scaffold(
           appBar: widget.showWelcome

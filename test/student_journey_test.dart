@@ -26,8 +26,9 @@ class PendingPostRepository extends Repository {
     required String category,
     required String description,
     required bool acceptsTrades,
-    required String pickupZoneName,
-    String? imageSource,
+    String? pickupZoneName,
+    String? customPickup,
+    List<String> imageSources = const [],
     String? editingId,
   }) => complete.future;
 }

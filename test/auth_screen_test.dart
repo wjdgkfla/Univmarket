@@ -7,8 +7,11 @@ class FakeAuth implements AuthService {
   String? email;
   String? password;
   String? name;
+  String? confirmedCode;
+  int resends = 0;
   bool registered = false;
   bool fail = false;
+  bool failCode = false;
   @override
   Future<void> signIn(String email, String password) async {
     if (fail) throw Exception('private server details');
@@ -23,6 +26,15 @@ class FakeAuth implements AuthService {
     this.email = email;
     this.password = password;
   }
+
+  @override
+  Future<void> confirmSignUp(String email, String code) async {
+    if (failCode) throw Exception('invalid code');
+    confirmedCode = code;
+  }
+
+  @override
+  Future<void> resendSignUpCode(String email) async => resends++;
 }
 
 void main() {
@@ -89,7 +101,7 @@ void main() {
   });
 
   testWidgets(
-    'sign-up asks for email confirmation and failures remain retryable',
+    'sign-up moves to code entry, and a sign-in failure remains retryable',
     (tester) async {
       final auth = FakeAuth()..fail = true;
       await tester.pumpWidget(MaterialApp(home: AuthScreen(auth: auth)));
@@ -111,10 +123,46 @@ void main() {
       await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
       await tester.pumpAndSettle();
       expect(auth.registered, isTrue);
+      // No clickable link: a mail security scanner can't burn it, and the
+      // student only ever sees a code to type in.
       expect(
-        find.textContaining('confirmation link to student@gmu.edu'),
+        find.textContaining('code we sent to student@gmu.edu'),
         findsOneWidget,
       );
+      expect(find.textContaining('confirmation link'), findsNothing);
     },
   );
+
+  testWidgets('a wrong code stays retryable; a full code auto-submits', (
+    tester,
+  ) async {
+    final auth = FakeAuth();
+    await tester.pumpWidget(MaterialApp(home: AuthScreen(auth: auth)));
+    await tester.tap(find.text('Create an account'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('auth-name')), 'Jordan Lee');
+    await tester.enterText(find.byKey(const Key('auth-email')), 'a@gwu.edu');
+    await tester.enterText(
+      find.byKey(const Key('auth-password')),
+      'password1234',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
+    await tester.pumpAndSettle();
+
+    auth.failCode = true;
+    await tester.enterText(find.byKey(const Key('auth-code')), '000000');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('incorrect or has expired'), findsOneWidget);
+    expect(auth.confirmedCode, isNull);
+
+    auth.failCode = false;
+    await tester.enterText(find.byKey(const Key('auth-code')), '123456');
+    await tester.pumpAndSettle();
+    expect(auth.confirmedCode, '123456');
+
+    // "Back" abandons the pending sign-up and returns to the form.
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('auth-email')), findsOneWidget);
+  });
 }

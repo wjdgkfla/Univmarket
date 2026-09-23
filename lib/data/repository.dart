@@ -66,6 +66,7 @@ const categoryIcons = {
   'Dorm': 'lamp',
   'Apparel': 'shirt',
   'Bags': 'bag',
+  'Other': 'board',
 };
 const categories = [
   'Textbooks',
@@ -75,6 +76,7 @@ const categories = [
   'Dorm',
   'Apparel',
   'Bags',
+  'Other',
 ];
 
 /// Report reasons: database key -> label. Keys match the reports table check.
@@ -495,29 +497,42 @@ class Repository extends ChangeNotifier {
   }
 
   Future<Listing> _listingFromRow(Map<String, dynamic> r) async {
-    var image = r['cover_image_url'] as String?;
-    if (image != null && !image.startsWith('https://')) {
-      try {
-        image = await ListingPhotoStorage(_db).resolve(image);
-      } catch (_) {
-        // A photo outage must not turn a successful listing write into failure.
-        image = null;
-      }
-    }
+    // Legacy rows (written before multi-photo) may carry a cover with an
+    // empty image_urls; fall back to the cover alone so they still show.
+    final paths =
+        ((r['image_urls'] as List?)?.cast<String>() ?? const []).isNotEmpty
+        ? (r['image_urls'] as List).cast<String>()
+        : [?r['cover_image_url'] as String?];
+    final resolved = await Future.wait(
+      paths.map((path) async {
+        if (path.startsWith('https://')) return path;
+        try {
+          return await ListingPhotoStorage(_db).resolve(path);
+        } catch (_) {
+          // A photo outage must not turn a successful listing write into failure.
+          return null;
+        }
+      }),
+    );
+    final images = resolved.whereType<String>().toList();
     return Listing(
       id: r['id'] as String,
       icon: _iconForCategory(r['category'] as String),
       title: r['title'] as String,
       price: (r['price'] as num).round(),
       condition: _conditionFromDb(r['condition'] as String),
-      zone: _zoneNames[r['pickup_zone_id']] ?? '',
+      zone:
+          _zoneNames[r['pickup_zone_id']] ??
+          (r['pickup_custom'] as String?) ??
+          '',
       tag: r['category'] as String,
       trades: r['accepts_trades'] as bool? ?? false,
       description: (r['description'] as String?) ?? '',
       sellerId: r['seller_id'] as String,
       universityId: r['university_id'] as String,
       status: r['status'] as String? ?? 'available',
-      imageSource: image,
+      imageSource: images.firstOrNull,
+      images: images,
       createdAt: DateTime.tryParse(r['created_at'] as String? ?? ''),
     );
   }
@@ -923,6 +938,10 @@ class Repository extends ChangeNotifier {
 
   /// Persist editable fields and cache only the row confirmed by the server.
   /// Backend RLS must independently enforce ownership and campus membership.
+  /// Give either [pickupZoneName] (a name from [pickupZones]) or
+  /// [customPickup] free text, never both. [imageSources] is the full
+  /// desired photo list, cover first: existing paths pass through
+  /// unchanged, `data:` entries upload as new photos.
   Future<void> createListing({
     required String title,
     required int price,
@@ -930,8 +949,9 @@ class Repository extends ChangeNotifier {
     required String category,
     required String description,
     required bool acceptsTrades,
-    required String pickupZoneName,
-    String? imageSource,
+    String? pickupZoneName,
+    String? customPickup,
+    List<String> imageSources = const [],
     String? editingId,
   }) async {
     final user = _db.auth.currentUser;
@@ -959,13 +979,30 @@ class Repository extends ChangeNotifier {
     if (!categories.contains(category)) {
       throw ArgumentError('Choose a valid category.');
     }
-    final zones = _zoneNames.entries
-        .where((e) => e.value == pickupZoneName)
-        .toList();
-    if (zones.length != 1) {
-      throw ArgumentError(
-        'Choose an available pickup location on your campus.',
-      );
+    if (imageSources.length > 6) {
+      throw ArgumentError('Use up to 6 photos.');
+    }
+    String? zoneId;
+    String? cleanCustomPickup;
+    if (pickupZoneName != null) {
+      final zones = _zoneNames.entries
+          .where((e) => e.value == pickupZoneName)
+          .toList();
+      if (zones.length != 1) {
+        throw ArgumentError(
+          'Choose an available pickup location on your campus.',
+        );
+      }
+      zoneId = zones.single.key;
+    } else if (customPickup != null) {
+      cleanCustomPickup = customPickup.trim();
+      if (cleanCustomPickup.length < 3 || cleanCustomPickup.length > 80) {
+        throw ArgumentError(
+          'Enter a pickup location between 3 and 80 characters.',
+        );
+      }
+    } else {
+      throw ArgumentError('Choose or enter a pickup location.');
     }
     final existing = editingId == null ? null : getListing(editingId);
     if (editingId != null &&
@@ -975,17 +1012,24 @@ class Repository extends ChangeNotifier {
             existing.status != 'available')) {
       throw StateError('Only your available listings can be edited.');
     }
-    String? uploadedPath;
-    if (imageSource != null && imageSource != existing?.imageSource) {
-      final photo = ListingPhoto.fromDataUri(imageSource);
-      uploadedPath = await ListingPhotoStorage(
-        _db,
-      ).upload(universityId: _universityId!, photo: photo);
+    // Kept photos (already a storage path) pass through; only new picks
+    // (data: URIs) actually upload.
+    final imagePaths = <String>[];
+    for (final source in imageSources) {
+      imagePaths.add(
+        source.startsWith('data:')
+            ? await ListingPhotoStorage(_db).upload(
+                universityId: _universityId!,
+                photo: ListingPhoto.fromDataUri(source),
+              )
+            : source,
+      );
     }
     final fields = <String, dynamic>{
-      'cover_image_url': ?uploadedPath,
-      if (uploadedPath != null) 'image_urls': [uploadedPath],
-      'pickup_zone_id': zones.single.key,
+      'cover_image_url': imagePaths.firstOrNull,
+      'image_urls': imagePaths,
+      'pickup_zone_id': zoneId,
+      'pickup_custom': cleanCustomPickup,
       'title': cleanTitle,
       'description': cleanDescription,
       'price': price,

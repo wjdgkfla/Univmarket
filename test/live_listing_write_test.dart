@@ -217,7 +217,7 @@ Future<void> save(
   acceptsTrades: false,
   pickupZoneName: zone,
   editingId: id,
-  imageSource: photo,
+  imageSources: [?photo],
 );
 void main() {
   for (final inbox in [true, false]) {
@@ -481,7 +481,9 @@ void main() {
       expect(write.url.queryParameters['status'], 'eq.available');
       final body = jsonDecode(write.body) as Map;
       expect(body.keys, isNot(contains('seller_id')));
-      expect(body.keys, isNot(contains('cover_image_url')));
+      // An unchanged https:// photo is kept as-is, not re-uploaded.
+      expect(body['cover_image_url'], 'https://test.invalid/book.jpg');
+      expect(body['image_urls'], ['https://test.invalid/book.jpg']);
       expect(f.repo.getListing('listing-b')?.title, 'Updated book');
     },
   );

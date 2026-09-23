@@ -7,6 +7,12 @@ abstract interface class AuthService {
 
   /// [name] becomes the profile's display name on first sign-in.
   Future<void> signUp(String email, String password, String name);
+
+  /// Confirms the 6-digit code emailed at sign-up and starts the session.
+  Future<void> confirmSignUp(String email, String code);
+
+  /// Emails a fresh code for a still-unconfirmed sign-up.
+  Future<void> resendSignUpCode(String email);
 }
 
 class SupabaseAuthService implements AuthService {
@@ -27,5 +33,19 @@ class SupabaseAuthService implements AuthService {
       data: {'display_name': name},
       emailRedirectTo: kIsWeb ? '${Uri.base.origin}/' : nativeAuthCallback,
     );
+  }
+
+  @override
+  Future<void> confirmSignUp(String email, String code) async {
+    await client.auth.verifyOTP(
+      type: OtpType.signup,
+      email: email,
+      token: code,
+    );
+  }
+
+  @override
+  Future<void> resendSignUpCode(String email) async {
+    await client.auth.resend(type: OtpType.signup, email: email);
   }
 }
