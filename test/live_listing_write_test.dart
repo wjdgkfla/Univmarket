@@ -22,6 +22,10 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
   final requests = <http.Request>[];
   var signedUrls = 0;
   var messageSent = false;
+  // Messages/offers created via the RPCs below, so the (now single, embedded)
+  // /conversations read reflects whatever the test has actually sent so far.
+  final messages = <Map<String, dynamic>>[];
+  final offers = <String, Map<String, dynamic>>{};
   final client = SupabaseClient(
     'https://test.invalid',
     'public-test-key',
@@ -55,7 +59,10 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
       }
       Object result = [];
       final path = request.url.path;
-      if (path.endsWith('/messages')) await beforeMessageRead?.call();
+      // Messages now arrive embedded in the /conversations read itself
+      // (there's no separate /messages request to hook), so this fires on
+      // that read instead — same interleaving point as before.
+      if (path.endsWith('/conversations')) await beforeMessageRead?.call();
       if ((rejectProfiles && path.endsWith('/public_profiles')) ||
           (rejectMessageRefresh &&
               messageSent &&
@@ -70,6 +77,17 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
       }
       if (path.endsWith('/rpc/create_message')) {
         messageSent = true;
+        final params = jsonDecode(request.body) as Map<String, dynamic>;
+        messages.add({
+          'id': 'message-confirmed',
+          'conversation_id': params['p_conversation_id'],
+          'from_user_id': 'student',
+          'to_user_id': sellerId,
+          'body': params['p_body'],
+          'type': 'text',
+          'offer_id': null,
+          'created_at': DateTime.now().toIso8601String(),
+        });
         result = 'message-confirmed';
       } else if (path.endsWith('/rpc/send_offer')) {
         if (rejectOffers) {
@@ -80,7 +98,26 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
             headers: {'content-type': 'application/json'},
           );
         }
-        result = 'offer-confirmed';
+        final params = jsonDecode(request.body) as Map<String, dynamic>;
+        const offerId = 'offer-confirmed';
+        offers[offerId] = {
+          'id': offerId,
+          'listing_id': 'listing-b',
+          'cash_amount': params['p_cash_amount'],
+          'status': 'pending',
+          'expires_at': null,
+        };
+        messages.add({
+          'id': 'offer-message-$offerId',
+          'conversation_id': params['p_conversation_id'],
+          'from_user_id': 'student',
+          'to_user_id': sellerId,
+          'body': 'Sent an offer',
+          'type': 'offer',
+          'offer_id': offerId,
+          'created_at': DateTime.now().toIso8601String(),
+        });
+        result = offerId;
       } else if (path.endsWith('/conversations') && withConversation) {
         result = [
           {
@@ -88,8 +125,13 @@ Future<({Repository repo, List<http.Request> requests})> fixture({
             'listing_id': 'listing-b',
             'buyer_id': 'student',
             'seller_id': sellerId,
+            'messages': messages
+                .where((m) => m['conversation_id'] == 'thread')
+                .toList(),
           },
         ];
+      } else if (path.endsWith('/offers')) {
+        result = offers.values.toList();
       } else if (path.startsWith('/storage/v1/object/sign/')) {
         result = {
           'signedURL':

@@ -7,8 +7,10 @@
 -- 2. Accepting one offer silently declines every other pending offer on
 --    the same listing, but never told those buyers — their chat just goes
 --    stale with a button that (correctly) stops working.
--- 3. A buyer could send unlimited pending cash offers on the same listing;
---    each conversation only has one, so this is one extra check.
+-- 3. A buyer could stack unlimited pending offers on the same listing. A
+--    fresh one now supersedes their last pending one instead: the app has
+--    no withdraw button yet, so rejecting the new offer outright would trap
+--    a buyer who changed their mind until the 48-hour expiry.
 create or replace function app_private.respond_to_offer(p_offer_id text,p_action text) returns void
 language plpgsql security definer set search_path = '' as $$
 declare
@@ -111,10 +113,9 @@ begin
   then raise exception 'Invalid offer contents' using errcode='22023'; end if;
   if not exists(select 1 from public.listings where id=conversation.listing_id and status='available') then
     raise exception 'Listing unavailable' using errcode='42501'; end if;
-  -- One buyer, one live offer per listing; a fresh one must answer or
-  -- withdraw the last before sending another.
-  if exists(select 1 from public.offers where conversation_id=p_conversation_id and from_user_id=actor and status='pending')
-  then raise exception 'You already have a pending offer on this listing' using errcode='22023'; end if;
+  -- A fresh offer replaces this buyer's last pending one on this listing.
+  update public.offers set status='superseded'
+    where conversation_id=p_conversation_id and from_user_id=actor and status='pending';
   if exists(select 1 from unnest(p_offered_listing_ids) i where not exists(
     select 1 from public.listings l where l.id=i and l.seller_id=actor
     and l.id<>conversation.listing_id and l.status='available'

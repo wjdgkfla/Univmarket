@@ -42,14 +42,24 @@ insert into offers(id,listing_id,conversation_id,from_user_id,to_user_id,kind,ca
 ('offer2','target','chat2','20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002','cash',8,now()+interval '1 day'),
 ('offer4','target2','chat4','20000000-0000-0000-0000-000000000004','20000000-0000-0000-0000-000000000002','cash',5,now()+interval '1 day');
 
+-- pg_temp.probe always rolls back the statement it runs (it exists to check
+-- an error code, not to commit a write) — every mutation whose effect a
+-- later, separate check() depends on must be a plain top-level call instead.
 set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
-select pg_temp.probe(
-  'a second pending offer from the same buyer on the same listing is rejected',
-  $q$select send_offer('chat1','cash',5,'{}')$q$,'22023');
+select send_offer('chat1','cash',5,'{}');
+select pg_temp.check(
+  'a second offer supersedes the buyer''s own pending one instead of being rejected',
+  (select status from offers where id='offer1')='superseded');
+select pg_temp.check(
+  'the new offer is the one now pending',
+  (select count(*) from offers where conversation_id='chat1' and status='pending' and cash_amount=5)=1);
 
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000002';
-select pg_temp.probe('seller accepts offer1', $q$select respond_to_offer('offer1','accept')$q$);
+select respond_to_offer(
+  (select id from offers where conversation_id='chat1' and status='pending'),
+  'accept'
+);
 select pg_temp.check(
   'accepted conversation shows the accept in its own preview (bug: never touched)',
   (select last_message from conversations where id='chat1')='Offer accepted');
@@ -64,9 +74,7 @@ select pg_temp.check(
   'the losing buyer''s chat preview reflects it, so it is not stuck on the old offer',
   (select last_message from conversations where id='chat2')='This item was reserved for another offer');
 
-select pg_temp.probe(
-  'seller marks target2 sold directly, without ever accepting an offer',
-  $q$update listings set status='sold' where id='target2'$q$);
+update listings set status='sold' where id='target2';
 select pg_temp.check(
   'a listing sold outside the offer flow still declines its pending offers',
   (select status from offers where id='offer4')='declined');

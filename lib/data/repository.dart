@@ -485,21 +485,6 @@ class Repository extends ChangeNotifier {
   ({String createdAt, String id})? _feedCursor;
 
   Future<void> _refreshListings() async {
-    // A reserved or sold item must stay visible to the buyer chatting about
-    // it and to students who saved it. That set is bounded by how much a
-    // student saves/chats about, unlike "every available listing" below, so
-    // it is fetched separately and never needs paging.
-    //
-    // ponytail: capped at 300 ids so this request's URL can never grow with
-    // the marketplace's size — a favorite/chat older than the most recent
-    // 300 drops from this feed (Saved and Inbox still fetch it directly by
-    // id, so it isn't lost there). Raise the cap, or move this to a small
-    // RPC that takes the ids in the request body instead of the URL, if a
-    // long-time user actually hits it.
-    final kept = {
-      for (final c in _conversations) c.listingId,
-      ..._favorites,
-    }.take(300).toList();
     final availableRows = await _db
         .from('listings')
         .select()
@@ -517,26 +502,39 @@ class Repository extends ChangeNotifier {
             createdAt: availableRows.last['created_at'] as String? ?? '',
             id: availableRows.last['id'] as String,
           );
-    final keptRows = await _db
+    // My own listings (any status), plus every listing I've saved or have a
+    // chat about, whatever its current status — a reserved or sold item
+    // must stay visible to the buyer chatting about it and to students who
+    // saved it. Each of these is a plain filter on my own id, not a list of
+    // listing ids, so unlike the paginated feed above, this can't grow this
+    // request's URL no matter how long someone's history gets.
+    final mineRows = await _db
         .from('listings')
         .select()
-        .eq('university_id', _universityId!)
+        .eq('seller_id', _me.id)
         .eq('moderation_state', 'visible')
-        .isFilter('deleted_at', null)
-        .neq('status', 'available')
-        .or(
-          [
-            'seller_id.eq.${_me.id}',
-            if (kept.isNotEmpty) 'id.in.(${kept.join(',')})',
-          ].join(','),
-        );
-    // Two separate requests, deduplicated by id: the neq/eq split above
-    // keeps them mutually exclusive in a real Postgres filter, but nothing
-    // guarantees that everywhere a `.select()` might be intercepted (tests),
-    // and resolving the same photo twice is wasted work either way.
+        .isFilter('deleted_at', null);
+    final favoriteRows = await _db
+        .from('favorites')
+        .select('listings(*)')
+        .eq('user_id', _me.id);
+    final conversationRows = await _db
+        .from('conversations')
+        .select('listings(*)')
+        .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}');
     final byId = <String, Map<String, dynamic>>{};
-    for (final r in [...availableRows, ...keptRows]) {
+    for (final r in [...availableRows, ...mineRows]) {
       byId[r['id'] as String] = r;
+    }
+    // The embedded listing can be hidden/deleted since the favorite or
+    // conversation row itself doesn't filter on that; check it here instead.
+    for (final r in [...favoriteRows, ...conversationRows]) {
+      final listing = r['listings'] as Map<String, dynamic>?;
+      if (listing != null &&
+          listing['moderation_state'] == 'visible' &&
+          listing['deleted_at'] == null) {
+        byId[listing['id'] as String] = listing;
+      }
     }
     final rows = byId.values.toList()
       ..sort(
@@ -820,35 +818,29 @@ class Repository extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Fetches every conversation's messages and offers in three queries
-  /// total, not two per conversation — the Inbox polls this every 15s, so an
-  /// N+1 pattern here gets slower and pricier as a student's chat history
-  /// grows, not just as they get more *active* chats.
+  /// Fetches every conversation with its messages embedded in one request —
+  /// not a per-conversation query, and not a `conversation_id in (...)` list
+  /// either, which would grow this request's URL right along with a
+  /// student's chat history. The Inbox polls this every 15s.
   Future<void> _refreshConversations([int attempt = 0]) async {
     final revision = _conversationRevision;
     final rows = await _db
         .from('conversations')
-        .select()
-        .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}');
-    final ids = [for (final r in rows) r['id'] as String];
-    final list = <Conversation>[];
-    if (ids.isNotEmpty) {
-      final msgRows = await _db
-          .from('messages')
-          .select()
-          .inFilter('conversation_id', ids)
-          .order('created_at');
-      final offers = await _offersForMessages(msgRows);
-      final byConversation = <String, List<Map<String, dynamic>>>{};
-      for (final m in msgRows) {
-        (byConversation[m['conversation_id'] as String] ??= []).add(m);
-      }
-      for (final r in rows) {
-        list.add(
-          _conversationFromRow(r, byConversation[r['id']] ?? const [], offers),
-        );
-      }
-    }
+        .select('*, messages(*)')
+        .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}')
+        .order('created_at', referencedTable: 'messages');
+    final allMessages = [
+      for (final r in rows) ...(r['messages'] as List).cast<Map<String, dynamic>>(),
+    ];
+    final offers = await _offersForMessages(allMessages);
+    final list = [
+      for (final r in rows)
+        _conversationFromRow(
+          r,
+          (r['messages'] as List).cast<Map<String, dynamic>>(),
+          offers,
+        ),
+    ];
     // Another refresh or confirmed write won while this snapshot was loading.
     // Preserve the newer cache and fetch again so a realtime event is not lost.
     if (_disposed) return;
@@ -862,6 +854,8 @@ class Repository extends ChangeNotifier {
     _conversationRevision++;
   }
 
+  /// Offers referenced by [msgRows]' `offer_id`s — bounded by however many
+  /// offer messages are already in hand, never a marketplace-wide list.
   Future<Map<String, Map<String, dynamic>>> _offersForMessages(
     List<Map<String, dynamic>> msgRows,
   ) async {
@@ -875,12 +869,7 @@ class Repository extends ChangeNotifier {
   }
 
   Future<Conversation> _hydrateConversation(Map<String, dynamic> row) async {
-    final id = row['id'] as String;
-    final msgRows = await _db
-        .from('messages')
-        .select()
-        .eq('conversation_id', id)
-        .order('created_at');
+    final msgRows = (row['messages'] as List).cast<Map<String, dynamic>>();
     final offers = await _offersForMessages(msgRows);
     return _conversationFromRow(row, msgRows, offers);
   }
@@ -994,8 +983,9 @@ class Repository extends ChangeNotifier {
     final revision = _conversationRevision;
     final row = await _db
         .from('conversations')
-        .select()
+        .select('*, messages(*)')
         .eq('id', conversationId)
+        .order('created_at', referencedTable: 'messages')
         .single();
     final conv = await _hydrateConversation(row);
     if (_disposed) return;

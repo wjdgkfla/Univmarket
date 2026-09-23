@@ -51,9 +51,10 @@ set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 
 -- Bug #2: "Message seller" on your own reserved/sold listing's thread must
 -- reopen it, not re-run the availability check.
-select pg_temp.probe(
-  'reopening chat about a reserved listing succeeds',
-  $q$select start_conversation('target')$q$);
+-- pg_temp.probe always rolls back the statement it runs, so a duplicate
+-- insert it caused would vanish along with everything else it did — this
+-- has to be a plain call for the later count() to mean anything.
+select start_conversation('target');
 select pg_temp.check(
   'reopening returns the existing conversation, not a duplicate',
   (select count(*) from conversations where listing_id='target' and buyer_id='20000000-0000-0000-0000-000000000001')=1);
@@ -65,15 +66,11 @@ select pg_temp.probe(
 
 -- Bug #3: marking a thread read must not depend on the listing at all.
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
-select pg_temp.probe(
-  'marking a reserved listing''s chat read succeeds',
-  $q$select mark_conversation_read('chat')$q$);
+select mark_conversation_read('chat');
 select pg_temp.check(
   'the read marker actually moved',
   (select buyer_last_read_at is not null from conversations where id='chat'));
-select pg_temp.probe(
-  'marking a hidden listing''s chat read still succeeds',
-  $q$select mark_conversation_read('hidden-chat')$q$);
+select mark_conversation_read('hidden-chat');
 
 -- Existing protections must still hold: a non-participant, a blocked
 -- counterparty, and a different university are all still denied.
