@@ -137,9 +137,11 @@ set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000002';
 update flow set offer_id=send_offer(conversation_id,'cash',5,'{}') where listing_id='cancel';
 reset role;
 update offers set expires_at=now()-interval '1 minute' where id=(select offer_id from flow where listing_id='cancel');
-select pg_temp.check('expiry job moves stale pending offers',
- app_private.expire_offers()=1
- and (select status from offers where id=(select offer_id from flow where listing_id='cancel'))='expired');
+-- Separate statements: a query's snapshot predates updates made by a
+-- function it calls, so the status must be read afterwards.
+select pg_temp.check('expiry job expires exactly the stale offer', app_private.expire_offers()=1);
+select pg_temp.check('stale pending offer is now expired',
+ (select status from offers where id=(select offer_id from flow where listing_id='cancel'))='expired');
 select pg_temp.check('expiry job is scheduled',
  exists(select 1 from cron.job where jobname='expire-offers'));
 
