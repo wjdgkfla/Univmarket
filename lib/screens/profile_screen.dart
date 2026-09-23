@@ -172,7 +172,32 @@ class ProfileScreen extends StatelessWidget {
                 'Review reports',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              trailing: Icon(CupertinoIcons.chevron_forward, color: c.inkFaint),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (repo.openReportCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: c.bad,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                      ),
+                      child: Text(
+                        '${repo.openReportCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  const SizedBox(width: 6),
+                  Icon(CupertinoIcons.chevron_forward, color: c.inkFaint),
+                ],
+              ),
               onTap: () => context.push('/admin/reports'),
             ),
           ],

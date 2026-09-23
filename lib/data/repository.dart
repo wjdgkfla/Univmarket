@@ -354,6 +354,13 @@ class Repository extends ChangeNotifier {
         _refreshBlocked(),
       ]);
       await _refreshListings();
+      if (_isAdmin) {
+        // The moderator badge is optional; it must never block sign-in.
+        try {
+          final count = await _db.rpc('admin_open_report_count') as num;
+          _openReportCount = count.toInt();
+        } catch (_) {}
+      }
     } catch (e) {
       bootstrapError = e.toString();
       debugPrint('Repository bootstrap failed: $e');
@@ -412,6 +419,9 @@ class Repository extends ChangeNotifier {
     _requireConfirmedAccount();
     await _refreshListings();
     notifyListeners();
+    try {
+      await refreshReportCount();
+    } catch (_) {}
   }
 
   Future<void> refreshInbox() async {
@@ -544,9 +554,29 @@ class Repository extends ChangeNotifier {
   Future<List<AdminReport>> openReports() async {
     _requireConfirmedAccount();
     final rows = await _db.rpc('admin_open_reports') as List<dynamic>;
-    return [
+    final reports = [
       for (final r in rows) AdminReport.fromJson(r as Map<String, dynamic>),
     ];
+    _setOpenReportCount(reports.length);
+    return reports;
+  }
+
+  /// Open reports awaiting a moderator; 0 for everyone else.
+  int get openReportCount => _openReportCount;
+  int _openReportCount = 0;
+
+  void _setOpenReportCount(int count) {
+    if (count == _openReportCount) return;
+    _openReportCount = count;
+    notifyListeners();
+  }
+
+  /// Polls the moderator badge. A no-op for students and the demo.
+  Future<void> refreshReportCount() async {
+    if (!_isAdmin || isDemo) return;
+    _requireConfirmedAccount();
+    final count = await _db.rpc('admin_open_report_count') as num;
+    _setOpenReportCount(count.toInt());
   }
 
   /// [action] is 'dismiss', 'hide_listing' or 'suspend_user'.
@@ -556,13 +586,14 @@ class Repository extends ChangeNotifier {
       'admin_resolve_report',
       params: {'p_report_id': reportId, 'p_action': action},
     );
-    // Hidden listings and suspended sellers leave the feed.
-    if (action != 'dismiss') {
-      try {
-        await _refreshListings();
-        notifyListeners();
-      } catch (_) {}
-    }
+    // Hidden listings and suspended sellers leave the feed. The action has
+    // committed, so failed reloads must not report failure.
+    try {
+      if (action != 'dismiss') await _refreshListings();
+      final count = await _db.rpc('admin_open_report_count') as num;
+      _openReportCount = count.toInt();
+    } catch (_) {}
+    notifyListeners();
   }
 
   /// Deletes your account on the server (anonymized profile, listings

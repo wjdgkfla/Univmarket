@@ -113,7 +113,33 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 48,
                       height: 48,
                       child: Center(
-                        child: Avatar(initials: repo.me.initials, size: 34),
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Avatar(initials: repo.me.initials, size: 34),
+                            // Moderators: open reports wait in Profile.
+                            if (repo.isAdmin && repo.openReportCount > 0)
+                              Positioned(
+                                right: -1,
+                                top: -1,
+                                child: Semantics(
+                                  label: 'Open reports to review',
+                                  child: Container(
+                                    width: 11,
+                                    height: 11,
+                                    decoration: BoxDecoration(
+                                      color: c.bad,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: c.bg,
+                                        width: 1.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

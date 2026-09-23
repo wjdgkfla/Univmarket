@@ -49,6 +49,7 @@ set local role authenticated;
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000002';
 select pg_temp.probe('students cannot list reports',$q$select admin_open_reports()$q$,'42501');
 select pg_temp.probe('students cannot resolve reports',$q$select admin_resolve_report('r-fine','dismiss')$q$,'42501');
+select pg_temp.probe('students cannot read the report count',$q$select admin_open_report_count()$q$,'42501');
 
 set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 select pg_temp.check('admin sees only their university''s open reports',
@@ -58,6 +59,7 @@ select pg_temp.check('queue shows reporter, listing and repeat count',
  (select x->>'reporter_name'='Student 2' and x->>'listing_title'='Cheap laptop'
    and (x->>'open_reports_on_user')::int=3 and x->>'notes'='Asked for a deposit'
   from jsonb_array_elements(admin_open_reports()) x where x->>'id'='r-scam'));
+select pg_temp.check('count matches the admin''s own queue', admin_open_report_count()=5);
 select pg_temp.probe('another university''s report is off limits',
 $q$select admin_resolve_report('r-b','dismiss')$q$,'42501');
 select pg_temp.probe('unknown action rejected',$q$select admin_resolve_report('r-fine','delete')$q$,'22023');
@@ -84,6 +86,7 @@ select pg_temp.check('suspend locks the student out',
  (select account_state from profiles where id='20000000-0000-0000-0000-000000000003')='suspended');
 select pg_temp.check('suspend hides all their listings',
  not exists(select 1 from listings where seller_id='20000000-0000-0000-0000-000000000003' and moderation_state='visible'));
+select pg_temp.check('count drops as reports are resolved', admin_open_report_count()=1);
 select pg_temp.check('queue now shows only the admin report',
  (select array_agg(x->>'id') from jsonb_array_elements(admin_open_reports()) x)=array['r-admin']);
 
@@ -92,6 +95,7 @@ select pg_temp.probe('suspended student can no longer enter the market',$q$selec
 
 set local role anon;
 select pg_temp.probe('anonymous cannot list reports',$q$select admin_open_reports()$q$,'42501');
+select pg_temp.probe('anonymous cannot read the report count',$q$select admin_open_report_count()$q$,'42501');
 
 reset role;
 -- admin_activity has no client policies, so read the log as the owner.

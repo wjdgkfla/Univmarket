@@ -6,6 +6,7 @@ import 'package:univmarket_app/data/repository.dart';
 import 'package:univmarket_app/screens/admin_reports_screen.dart';
 import 'package:univmarket_app/screens/profile_screen.dart';
 import 'package:univmarket_app/theme/tokens.dart';
+import 'package:univmarket_app/widgets/report_alerts.dart';
 
 /// Offline repository with a moderator flag and an in-memory report queue.
 class _AdminRepo extends Repository {
@@ -38,6 +39,16 @@ class _AdminRepo extends Repository {
   ];
   @override
   bool get isAdmin => admin;
+  int count = 2;
+  int polls = 0;
+  @override
+  int get openReportCount => count;
+  @override
+  Future<void> refreshReportCount() async {
+    polls++;
+    notifyListeners();
+  }
+
   @override
   Future<List<AdminReport>> openReports() async => [...queue];
   @override
@@ -113,5 +124,63 @@ void main() {
     await tester.pumpWidget(_host(repo, const AdminReportsScreen()));
     await tester.pumpAndSettle();
     expect(find.text('No open reports'), findsOneWidget);
+  });
+
+  testWidgets('profile shows how many reports are open', (tester) async {
+    await tester.pumpWidget(_host(_AdminRepo(), const ProfileScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('2'), findsOneWidget);
+  });
+
+  testWidgets('a new report raises an alert that opens the queue', (
+    tester,
+  ) async {
+    final repo = _AdminRepo();
+    var reviews = 0;
+    await tester.pumpWidget(
+      _host(
+        repo,
+        ReportAlerts(
+          repository: repo,
+          onReview: () => reviews++,
+          child: const Scaffold(body: SizedBox()),
+        ),
+      ),
+    );
+    // Reports already open at launch are badges, not alerts.
+    await tester.pump(const Duration(minutes: 2));
+    expect(repo.polls, 1);
+    expect(find.text('New report to review'), findsNothing);
+
+    repo.count = 3;
+    await tester.pump(const Duration(minutes: 2));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('New report to review'), findsOneWidget);
+    await tester.tap(find.text('Review'));
+    expect(reviews, 1);
+
+    // Resolving reports lowers the count without an alert.
+    await tester.pumpAndSettle(const Duration(seconds: 5));
+    repo.count = 1;
+    await tester.pump(const Duration(minutes: 2));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('New report to review'), findsNothing);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('students are never polled', (tester) async {
+    final repo = _AdminRepo(admin: false);
+    await tester.pumpWidget(
+      _host(
+        repo,
+        ReportAlerts(
+          repository: repo,
+          onReview: () {},
+          child: const SizedBox(),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(minutes: 10));
+    expect(repo.polls, 0);
   });
 }
