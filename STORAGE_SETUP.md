@@ -2,7 +2,7 @@
 
 The app now uploads JPEG/PNG files up to 1,500,000 bytes to a **private** `listing-images` bucket using paths `<university-id>/<authenticated-user-id>/<random-128-bit-name>.<extension>`. Uploads do not overwrite objects. The listings `cover_image_url` and `image_urls` fields store object paths for new uploads, not expiring URLs. Existing HTTPS photo URLs remain readable for compatibility.
 
-The hosted project was inspected: no buckets or storage object policies were returned. This document does not create them. Live photo posting cannot succeed until provisioning is completed.
+The bucket and its policies are provisioned by `supabase/migrations/20260923063332_listing_image_storage.sql` (applied to the hosted project on 2026-09-23) and tested in `supabase/tests/audit_hardening.sql`: uploads only into `<your university>/<your user id>/`, reads only for your own uploads or photos on listings you can see, no client updates or deletes. `listings.cover_image_url` must be the seller's own path in that folder (`20260923063328_harden_listing_fields.sql`).
 
 Required provisioning and verification:
 
