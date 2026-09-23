@@ -49,7 +49,7 @@ begin
   delete from public.device_push_tokens where user_id = actor;
 
   update public.profiles
-    set display_name = 'Deleted student', bio = null, profile_image_url = null,
+    set display_name = 'Deleted student', bio = '', profile_image_url = null,
         account_state = 'deleted', deleted_at = now()
     where id = actor;
 

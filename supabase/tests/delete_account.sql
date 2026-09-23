@@ -25,9 +25,9 @@ insert into auth.users(id,email,email_confirmed_at,is_anonymous) values
 ('20000000-0000-0000-0000-000000000002','leaving@a.test',now(),false),
 ('20000000-0000-0000-0000-000000000003','classmate@a.test',now(),false);
 insert into profiles(id,university_id,home_campus_id,display_name,bio) values
-('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Seller',null),
+('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Seller',''),
 ('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Leaving Student','Personal bio'),
-('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Classmate',null);
+('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Classmate','');
 insert into listings(id,seller_id,university_id,campus_id,title,description) values
 ('reserved','20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Desk lamp','A working desk lamp.'),
 ('pending','20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Bike lock','A sturdy bike lock.'),
@@ -59,7 +59,7 @@ select pg_temp.check('sign-in removed',
 select pg_temp.check('other accounts untouched',
  (select count(*) from auth.users where id in ('20000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000003'))=2);
 select pg_temp.check('profile anonymized',
- (select display_name='Deleted student' and bio is null and account_state='deleted' and deleted_at is not null
+ (select display_name='Deleted student' and bio='' and account_state='deleted' and deleted_at is not null
   from profiles where id='20000000-0000-0000-0000-000000000002'));
 select pg_temp.check('deleted profile hidden from other students',
  not exists(select 1 from public_profiles where id='20000000-0000-0000-0000-000000000002'));
