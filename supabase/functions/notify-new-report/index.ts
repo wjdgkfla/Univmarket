@@ -59,14 +59,27 @@ Deno.serve(async (req) => {
     auth: { user: gmailUser, pass: gmailPassword },
   });
 
+  const send = async (mail: Record<string, unknown>) => {
+    try {
+      await transport.sendMail({
+        from: `"UnivMarket Reports" <${gmailUser}>`,
+        ...mail,
+      });
+      return null;
+    } catch (e) {
+      // Usually a wrong or revoked App Password; visible in function logs.
+      console.error("Gmail send failed:", e instanceof Error ? e.message : e);
+      return json({ error: "send failed" }, 502);
+    }
+  };
+
   if (body.test === true) {
-    await transport.sendMail({
-      from: `"UnivMarket Reports" <${gmailUser}>`,
+    const failed = await send({
       to: gmailUser,
       subject: "UnivMarket report alerts are working",
       text: "This is a test. New reports will be emailed to this inbox.",
     });
-    return json({ sent: true, test: true });
+    return failed ?? json({ sent: true, test: true });
   }
   // Already resolved, or never existed: nothing to announce.
   if (!report) return json({ sent: false });
@@ -85,12 +98,12 @@ Deno.serve(async (req) => {
     "",
     "Review it in the UnivMarket app: Profile > Review reports.",
   ];
-  await transport.sendMail({
-    from: `"UnivMarket Reports" <${gmailUser}>`,
+  const failed = await send({
     to: gmailUser,
     bcc: report.admin_emails,
     subject: `New report at ${report.school}: ${reason}`,
     text: lines.join("\n"),
   });
-  return json({ sent: true, recipients: 1 + report.admin_emails.length });
+  return failed ??
+    json({ sent: true, recipients: 1 + report.admin_emails.length });
 });
