@@ -168,7 +168,7 @@ select pg_temp.probe('more than 6 photos rejected',
 $q$update listings set image_urls=(select array_agg('10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/'||
   lpad(to_hex(n),32,'0')||'.jpg') from generate_series(1,7) n) where id='cancel'$q$,'23514');
 select pg_temp.probe('a second photo from someone else''s folder is rejected',
-$q$update listings set image_urls=image_urls || '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000002/0123456789abcdef0123456789abcdef.jpg' where id='cancel'$q$,'23514');
+$q$update listings set image_urls=image_urls || array['10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000002/0123456789abcdef0123456789abcdef.jpg'] where id='cancel'$q$,'23514');
 select pg_temp.probe('cover must be the first photo',
 $q$update listings set cover_image_url='10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001/ffffffffffffffffffffffffffffffff.jpg' where id='cancel'$q$,'23514');
 select pg_temp.probe('"Other" is a real, selectable category',
