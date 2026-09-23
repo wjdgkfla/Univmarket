@@ -36,7 +36,7 @@ class IncomingRepository extends Repository {
 
 void main() {
   testWidgets(
-    'inbox receives new threads on entry, while open, and after resume',
+    'inbox refreshes on open and after resume, not on a timer while open',
     (tester) async {
       final repo = IncomingRepository();
       await tester.pumpWidget(
@@ -47,18 +47,18 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('Incoming 1'), findsOneWidget);
-      await tester.pump(const Duration(seconds: 15));
+      // Ongoing freshness while open now comes from the app-wide realtime
+      // listener (InboxLiveSync), not from this screen polling on a timer.
+      await tester.pump(const Duration(seconds: 30));
       await tester.pumpAndSettle();
-      expect(find.text('Incoming 2'), findsOneWidget);
+      expect(repo.revision, 1);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
       await tester.pump(const Duration(seconds: 30));
-      expect(repo.revision, 2);
+      expect(repo.revision, 1);
       tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
       await tester.pumpAndSettle();
-      expect(find.text('Incoming 3'), findsOneWidget);
+      expect(find.text('Incoming 2'), findsOneWidget);
       await tester.pumpWidget(const SizedBox());
-      await tester.pump(const Duration(seconds: 30));
-      expect(repo.revision, 3);
       repo.dispose();
     },
   );

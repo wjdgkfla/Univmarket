@@ -93,7 +93,12 @@ void main() {
           } else if (params['created_at'] == 'lt.${firstPage.last['created_at']}') {
             result = secondPage;
           } else {
-            result = firstPage;
+            // A real database just returns up to however many rows were
+            // asked for; simulate that (rather than always the fixed first
+            // page) so a refresh's growing limit is actually exercised.
+            final pool = [...firstPage, ...secondPage];
+            final limit = int.tryParse(params['limit'] ?? '') ?? 300;
+            result = pool.take(limit).toList();
           }
         }
         return http.Response(
@@ -124,5 +129,17 @@ void main() {
     final before = requests.length;
     await repo.loadMoreListings();
     expect(requests.length, before);
+
+    // Bug B6: a refresh (pull-to-refresh, the periodic timer, reopening the
+    // app) used to always re-request just one page, throwing away whatever
+    // extra pages loadMoreListings had already fetched.
+    await repo.refreshMarketplace();
+    expect(repo.listListings(), hasLength(340));
+    // "mine" also hits /listings without an 'or' param but never sets a
+    // limit at all — match on 'status' to get the paginated request itself.
+    final refreshRequest = requests.lastWhere(
+      (r) => r.url.queryParameters['status'] == 'eq.available',
+    );
+    expect(refreshRequest.url.queryParameters['limit'], '340');
   });
 }

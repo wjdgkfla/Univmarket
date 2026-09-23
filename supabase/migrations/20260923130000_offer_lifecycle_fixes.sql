@@ -138,29 +138,43 @@ end $$;
 -- Accept/Decline buttons that silently fail. A trigger on the listing
 -- itself is the root fix: it also covers finish_reservation's own sold
 -- path and any future caller, not just today's two.
-create function app_private.decline_offers_on_sold() returns trigger
+--
+-- Bug (B3): the same thing happens when a listing is soft-deleted or
+-- moderator-hidden instead of sold — neither touches `status`, so the
+-- original version of this trigger (which only watched that column) never
+-- fired for them, leaving those offers pending too.
+create function app_private.decline_offers_on_unavailable() returns trigger
 language plpgsql security definer set search_path = '' as $$
-declare sibling record;
+declare sibling record; message text;
 begin
   if new.status='sold' and old.status is distinct from 'sold' then
-    for sibling in
-      select id, conversation_id, from_user_id
-      from public.offers where listing_id=new.id and status='pending'
-    loop
-      update public.offers set status='declined' where id=sibling.id;
-      insert into public.messages(conversation_id,from_user_id,to_user_id,body,type)
-      values(sibling.conversation_id,new.seller_id,sibling.from_user_id,'This item was sold','system');
-      update public.conversations set last_message='This item was sold',updated_at=now()
-        where id=sibling.conversation_id;
-    end loop;
+    message := 'This item was sold';
+  elsif (new.moderation_state='hidden' and old.moderation_state is distinct from 'hidden')
+     or (new.deleted_at is not null and old.deleted_at is null) then
+    message := 'This item is no longer available';
+  else
+    return new;
   end if;
+  for sibling in
+    select id, conversation_id, from_user_id
+    from public.offers where listing_id=new.id and status='pending'
+  loop
+    update public.offers set status='declined' where id=sibling.id;
+    insert into public.messages(conversation_id,from_user_id,to_user_id,body,type)
+    values(sibling.conversation_id,new.seller_id,sibling.from_user_id,message,'system');
+    update public.conversations set last_message=message,updated_at=now()
+      where id=sibling.conversation_id;
+  end loop;
   return new;
 end $$;
-revoke all on function app_private.decline_offers_on_sold() from public, anon, authenticated;
+revoke all on function app_private.decline_offers_on_unavailable() from public, anon, authenticated;
 
-drop trigger if exists listings_decline_offers_on_sold on public.listings;
-create trigger listings_decline_offers_on_sold
-after update of status on public.listings
-for each row execute function app_private.decline_offers_on_sold();
+create trigger listings_decline_offers_on_unavailable
+after update on public.listings
+for each row
+when (old.status is distinct from new.status
+  or old.moderation_state is distinct from new.moderation_state
+  or old.deleted_at is distinct from new.deleted_at)
+execute function app_private.decline_offers_on_unavailable();
 
 notify pgrst, 'reload schema';

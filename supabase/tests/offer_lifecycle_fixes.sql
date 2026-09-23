@@ -24,23 +24,33 @@ insert into auth.users(id,email,email_confirmed_at,is_anonymous) values
 ('20000000-0000-0000-0000-000000000001','buyer1@a.test',now(),false),
 ('20000000-0000-0000-0000-000000000002','seller@a.test',now(),false),
 ('20000000-0000-0000-0000-000000000003','buyer2@a.test',now(),false),
-('20000000-0000-0000-0000-000000000004','buyer4@a.test',now(),false);
+('20000000-0000-0000-0000-000000000004','buyer4@a.test',now(),false),
+('20000000-0000-0000-0000-000000000005','buyer5@a.test',now(),false),
+('20000000-0000-0000-0000-000000000006','buyer6@a.test',now(),false);
 insert into profiles(id,university_id,home_campus_id,display_name) values
 ('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Buyer 1'),
 ('20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Seller'),
 ('20000000-0000-0000-0000-000000000003','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Buyer 2'),
-('20000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Buyer 4');
+('20000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Buyer 4'),
+('20000000-0000-0000-0000-000000000005','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Buyer 5'),
+('20000000-0000-0000-0000-000000000006','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Buyer 6');
 insert into listings(id,seller_id,university_id,campus_id,title,description) values
 ('target','20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Target','Two competing offers'),
-('target2','20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Target 2','Sold directly, no accepted offer');
+('target2','20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Target 2','Sold directly, no accepted offer'),
+('target3','20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Target 3','Deleted by its seller'),
+('target4','20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Target 4','Hidden by a moderator');
 insert into conversations(id,listing_id,buyer_id,seller_id) values
 ('chat1','target','20000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000002'),
 ('chat2','target','20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002'),
-('chat4','target2','20000000-0000-0000-0000-000000000004','20000000-0000-0000-0000-000000000002');
+('chat4','target2','20000000-0000-0000-0000-000000000004','20000000-0000-0000-0000-000000000002'),
+('chat5','target3','20000000-0000-0000-0000-000000000005','20000000-0000-0000-0000-000000000002'),
+('chat6','target4','20000000-0000-0000-0000-000000000006','20000000-0000-0000-0000-000000000002');
 insert into offers(id,listing_id,conversation_id,from_user_id,to_user_id,kind,cash_amount,expires_at) values
 ('offer1','target','chat1','20000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000002','cash',10,now()+interval '1 day'),
 ('offer2','target','chat2','20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002','cash',8,now()+interval '1 day'),
-('offer4','target2','chat4','20000000-0000-0000-0000-000000000004','20000000-0000-0000-0000-000000000002','cash',5,now()+interval '1 day');
+('offer4','target2','chat4','20000000-0000-0000-0000-000000000004','20000000-0000-0000-0000-000000000002','cash',5,now()+interval '1 day'),
+('offer5','target3','chat5','20000000-0000-0000-0000-000000000005','20000000-0000-0000-0000-000000000002','cash',6,now()+interval '1 day'),
+('offer6','target4','chat6','20000000-0000-0000-0000-000000000006','20000000-0000-0000-0000-000000000002','cash',7,now()+interval '1 day');
 
 -- pg_temp.probe always rolls back the statement it runs (it exists to check
 -- an error code, not to commit a write) — every mutation whose effect a
@@ -81,6 +91,28 @@ select pg_temp.check(
 select pg_temp.check(
   'that buyer is told their offer died with the direct sale, not left with a dead Accept button',
   exists(select 1 from messages where conversation_id='chat4' and type='system' and body='This item was sold'));
+
+-- Bug B3: neither of these touches `status`, so the original trigger (which
+-- only watched that column) never caught them.
+update listings set deleted_at=now() where id='target3';
+select pg_temp.check(
+  'the seller deleting a listing also declines its pending offers',
+  (select status from offers where id='offer5')='declined');
+select pg_temp.check(
+  'that buyer is told, not left with a dead Accept button on a vanished listing',
+  exists(select 1 from messages where conversation_id='chat5' and type='system'
+    and body='This item is no longer available'));
+
+reset role;
+update listings set moderation_state='hidden' where id='target4';
+set local role authenticated;
+select pg_temp.check(
+  'a moderator hiding a listing also declines its pending offers',
+  (select status from offers where id='offer6')='declined');
+select pg_temp.check(
+  'that buyer is told a hidden listing''s offer died too',
+  exists(select 1 from messages where conversation_id='chat6' and type='system'
+    and body='This item is no longer available'));
 
 table checks;
 do $$ declare failures text; begin

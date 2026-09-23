@@ -96,9 +96,12 @@ set local request.jwt.claim.sub='20000000-0000-0000-0000-000000000001';
 select send_offer('chat','cash',15,'{}');
 reset role;
 set local role service_role;
+-- Every insert in this test runs in the same transaction, so created_at is
+-- identical across all of them (Postgres's now() is transaction-stable) —
+-- order by it can't pick out "the latest" one. type='offer' is unique here.
 create temp table offer_push as select push_notification_details(
   (select value from token),
-  (select id from notifications order by created_at desc limit 1)
+  (select id from notifications where type='offer')
 ) as d;
 select pg_temp.check('an offer notification names the listing, not "Sent an offer"',
  (select d->>'title' from offer_push)='Buyer sent an offer'

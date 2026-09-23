@@ -328,6 +328,12 @@ class Repository extends ChangeNotifier {
     _db.from('offers').stream(primaryKey: ['id']).eq('conversation_id', id),
   ];
 
+  /// Every message addressed to me, anywhere — not scoped to one
+  /// conversation. Used to keep the tab-bar's unread dot live without
+  /// requiring the Inbox tab to have been opened first.
+  Stream<Object?> incomingMessages() =>
+      _db.from('messages').stream(primaryKey: ['id']).eq('to_user_id', _me.id);
+
   Conversation? getConversation(String id) {
     for (final c in _conversations) {
       if (c.id == id) return c;
@@ -483,6 +489,12 @@ class Repository extends ChangeNotifier {
   bool get hasMoreListings => _hasMoreListings;
   bool _loadingMoreListings = false;
   ({String createdAt, String id})? _feedCursor;
+  // How many "available" rows are currently loaded — starts at one page,
+  // grows as loadMoreListings fetches more. A plain refresh (pull-to-
+  // refresh, the periodic timer, reopening the app) re-requests this many,
+  // not just one page's worth, so it doesn't throw away pages a student
+  // already scrolled through.
+  int _loadedAvailableCount = _feedPageSize;
 
   Future<void> _refreshListings() async {
     final availableRows = await _db
@@ -494,8 +506,13 @@ class Repository extends ChangeNotifier {
         .isFilter('deleted_at', null)
         .order('created_at', ascending: false)
         .order('id', ascending: false)
-        .limit(_feedPageSize);
-    _hasMoreListings = availableRows.length == _feedPageSize;
+        .limit(_loadedAvailableCount);
+    // _loadedAvailableCount itself never shrinks (only loadMoreListings
+    // grows it) — a real drop in how many listings exist just means fewer
+    // rows come back than requested, which is exactly what "no more" (a
+    // partial page) already means; there's no need to lower the request
+    // size to detect that correctly, and doing so risked it degrading to 0.
+    _hasMoreListings = availableRows.length == _loadedAvailableCount;
     _feedCursor = availableRows.isEmpty
         ? null
         : (
@@ -573,6 +590,7 @@ class Repository extends ChangeNotifier {
           .order('id', ascending: false)
           .limit(_feedPageSize);
       _hasMoreListings = rows.length == _feedPageSize;
+      _loadedAvailableCount += rows.length;
       if (rows.isNotEmpty) {
         _feedCursor = (
           createdAt: rows.last['created_at'] as String? ?? '',
@@ -588,6 +606,33 @@ class Repository extends ChangeNotifier {
     } finally {
       _loadingMoreListings = false;
     }
+  }
+
+  /// Searches the whole university's available listings server-side, not
+  /// just the pages already loaded into [listListings] — otherwise a term
+  /// that only matches an older listing (past the feed's page cap) would
+  /// come back empty even though the item is really there. Results aren't
+  /// cached into [listListings]; callers hold onto the returned list
+  /// themselves. Demo mode has no server to search, so it always returns
+  /// empty — screens fall back to filtering the loaded catalog client-side.
+  Future<List<Listing>> searchListings(String query) async {
+    final trimmed = query.trim();
+    if (isDemo || trimmed.isEmpty) return const [];
+    // ',' and '(' are structural in PostgREST's `.or()` syntax; blanking
+    // them out means a search containing one can't break the filter itself
+    // — worst case it just matches a little more loosely than typed.
+    final safe = trimmed.replaceAll(RegExp(r'[,()]'), ' ');
+    final rows = await _db
+        .from('listings')
+        .select()
+        .eq('university_id', _universityId!)
+        .eq('status', 'available')
+        .eq('moderation_state', 'visible')
+        .isFilter('deleted_at', null)
+        .or('title.ilike.%$safe%,description.ilike.%$safe%')
+        .order('created_at', ascending: false)
+        .limit(60);
+    return Future.wait([for (final r in rows) _listingFromRow(r)]);
   }
 
   Future<Listing> _listingFromRow(Map<String, dynamic> r) async {
