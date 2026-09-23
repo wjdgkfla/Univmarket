@@ -6,25 +6,23 @@ class Avatar extends StatelessWidget {
   final String initials;
   final double size;
   final VoidCallback? onTap;
-  const Avatar({super.key, required this.initials, this.size = 36, this.onTap});
+  const Avatar({super.key, required this.initials, this.size = 40, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
+    final c = context.colors;
     final content = Container(
       width: size,
       height: size,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: LinearGradient(colors: [colors.accent, colors.accentDeep]),
-      ),
+      decoration: BoxDecoration(color: c.accentWash, shape: BoxShape.circle),
       child: Text(
         initials,
+        textScaler: TextScaler.noScaling,
         style: TextStyle(
-          color: Colors.white,
+          color: c.accentDeep,
           fontWeight: FontWeight.w700,
-          fontSize: size * 0.36,
+          fontSize: size * 0.38,
         ),
       ),
     );

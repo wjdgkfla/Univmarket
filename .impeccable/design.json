@@ -1,0 +1,549 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-23T00:41:42+00:00",
+  "title": "Design System: UnivMarket",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "#262626",
+          "#434343",
+          "#616161",
+          "#7E7E7E",
+          "#9B9B9B",
+          "#B8B8B8",
+          "#D5D5D5",
+          "#F2F2F2"
+        ]
+      },
+      "fill-grey": {
+        "role": "neutral",
+        "displayName": "Fill Grey",
+        "canonical": "#F2F3F5",
+        "tonalRamp": [
+          "#21252B",
+          "#3B404C",
+          "#545C6D",
+          "#6D788E",
+          "#8E96A8",
+          "#AFB5C1",
+          "#D0D3DB",
+          "#F1F2F4"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#E6E8EB",
+        "tonalRamp": [
+          "#22252A",
+          "#3C424B",
+          "#565E6B",
+          "#707B8C",
+          "#9099A6",
+          "#B0B6C0",
+          "#D0D4DA",
+          "#F1F2F4"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#17191C",
+        "tonalRamp": [
+          "#22252A",
+          "#3D424A",
+          "#575F6A",
+          "#717B8A",
+          "#9199A5",
+          "#B1B7BF",
+          "#D1D4D9",
+          "#F1F2F4"
+        ]
+      },
+      "ink-deep": {
+        "role": "neutral",
+        "displayName": "Ink Deep",
+        "canonical": "#0B0C0E",
+        "tonalRamp": [
+          "#22252B",
+          "#3B414B",
+          "#555D6C",
+          "#6F798D",
+          "#8F97A7",
+          "#AFB5C0",
+          "#D0D3DA",
+          "#F1F2F4"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Ink Soft",
+        "canonical": "#5B616B",
+        "tonalRamp": [
+          "#232529",
+          "#3E4249",
+          "#595F68",
+          "#747B88",
+          "#9399A3",
+          "#B2B7BE",
+          "#D2D4D8",
+          "#F1F2F3"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Ink Faint",
+        "canonical": "#6E747E",
+        "tonalRamp": [
+          "#242629",
+          "#3F4248",
+          "#5A5F67",
+          "#757C86",
+          "#9499A2",
+          "#B3B7BD",
+          "#D2D4D8",
+          "#F1F2F3"
+        ]
+      },
+      "letterbox-grey": {
+        "role": "neutral",
+        "displayName": "Letterbox Grey",
+        "canonical": "#E9EBEE",
+        "tonalRamp": [
+          "#21252B",
+          "#3B424C",
+          "#545E6D",
+          "#6E7A8E",
+          "#8E98A8",
+          "#AFB6C1",
+          "#D0D4DA",
+          "#F1F2F4"
+        ]
+      },
+      "gmu-green": {
+        "role": "primary",
+        "displayName": "GMU Green",
+        "canonical": "#006633",
+        "tonalRamp": [
+          "#004C26",
+          "#008743",
+          "#00C161",
+          "#00FB7E",
+          "#37FF9B",
+          "#71FFB8",
+          "#ABFFD5",
+          "#E6FFF2"
+        ]
+      },
+      "gmu-green-deep": {
+        "role": "primary",
+        "displayName": "GMU Green Deep",
+        "canonical": "#004D26",
+        "tonalRamp": [
+          "#004C26",
+          "#008743",
+          "#00C15F",
+          "#00FB7C",
+          "#37FF9A",
+          "#71FFB7",
+          "#ABFFD5",
+          "#E6FFF2"
+        ]
+      },
+      "gmu-green-wash": {
+        "role": "primary",
+        "displayName": "GMU Green Wash",
+        "canonical": "#E6F2EA",
+        "tonalRamp": [
+          "#1A3222",
+          "#2E593C",
+          "#427F56",
+          "#56A570",
+          "#7BBA90",
+          "#A2CEB0",
+          "#C8E2D1",
+          "#EEF6F1"
+        ]
+      },
+      "gwu-navy": {
+        "role": "primary",
+        "displayName": "GWU Navy",
+        "canonical": "#033C5A",
+        "tonalRamp": [
+          "#02314A",
+          "#045782",
+          "#067DBB",
+          "#08A2F3",
+          "#3DB8F9",
+          "#76CDFA",
+          "#AEE1FC",
+          "#E6F6FE"
+        ]
+      },
+      "gwu-navy-deep": {
+        "role": "primary",
+        "displayName": "GWU Navy Deep",
+        "canonical": "#022B41",
+        "tonalRamp": [
+          "#02314A",
+          "#045783",
+          "#067CBB",
+          "#08A1F4",
+          "#3DB7F9",
+          "#75CCFB",
+          "#AEE1FC",
+          "#E6F6FE"
+        ]
+      },
+      "gwu-navy-wash": {
+        "role": "primary",
+        "displayName": "GWU Navy Wash",
+        "canonical": "#E4ECF1",
+        "tonalRamp": [
+          "#1A2932",
+          "#2E4859",
+          "#42687F",
+          "#5687A6",
+          "#7BA2BB",
+          "#A1BDCE",
+          "#C8D8E2",
+          "#EEF3F6"
+        ]
+      },
+      "good": {
+        "role": "semantic",
+        "displayName": "Good",
+        "canonical": "#15803D",
+        "tonalRamp": [
+          "#0B421F",
+          "#137437",
+          "#1BA64F",
+          "#23D867",
+          "#53E389",
+          "#85EBAB",
+          "#B7F3CE",
+          "#E9FBF0"
+        ]
+      },
+      "good-wash": {
+        "role": "semantic",
+        "displayName": "Good Wash",
+        "canonical": "#E3F4E8",
+        "tonalRamp": [
+          "#16371F",
+          "#266137",
+          "#368B4F",
+          "#47B467",
+          "#6FC689",
+          "#99D7AB",
+          "#C3E7CE",
+          "#EDF8F0"
+        ]
+      },
+      "warn": {
+        "role": "semantic",
+        "displayName": "Warn",
+        "canonical": "#B45309",
+        "tonalRamp": [
+          "#492204",
+          "#803B06",
+          "#B85509",
+          "#EF6E0C",
+          "#F58F40",
+          "#F8AF78",
+          "#FBD0AF",
+          "#FEF1E7"
+        ]
+      },
+      "warn-wash": {
+        "role": "semantic",
+        "displayName": "Warn Wash",
+        "canonical": "#FDF0DF",
+        "tonalRamp": [
+          "#482B04",
+          "#7F4B08",
+          "#B66C0B",
+          "#ED8C0F",
+          "#F3A742",
+          "#F7C079",
+          "#FADAB0",
+          "#FEF4E7"
+        ]
+      },
+      "bad": {
+        "role": "semantic",
+        "displayName": "Bad",
+        "canonical": "#CC2A22",
+        "tonalRamp": [
+          "#420D0B",
+          "#741813",
+          "#A5221C",
+          "#D72C24",
+          "#E25A53",
+          "#EB8A85",
+          "#F3BAB7",
+          "#FBEAE9"
+        ]
+      },
+      "bad-wash": {
+        "role": "semantic",
+        "displayName": "Bad Wash",
+        "canonical": "#FCE8E7",
+        "tonalRamp": [
+          "#440B08",
+          "#78140F",
+          "#AC1D15",
+          "#DF251C",
+          "#E9544D",
+          "#EF8681",
+          "#F6B8B5",
+          "#FCE9E8"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "large-title": {
+        "displayName": "Large Title",
+        "purpose": "Top-level tab titles (Search, Saved, Inbox)."
+      },
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "GMUMarket / GWUMarket beside the Bag U mark, in the school color."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Listing title on detail, profile name."
+      },
+      "section-title": {
+        "displayName": "Section Title",
+        "purpose": "In-feed section heads with a count on the right."
+      },
+      "nav-title": {
+        "displayName": "Nav Title",
+        "purpose": "Centered app-bar titles."
+      },
+      "price": {
+        "displayName": "Price",
+        "purpose": "Every price via priceText; 26/800 in offer cards; Free in school color."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Listing descriptions; 15pt in dialogs, notices, empty states."
+      },
+      "body-small": {
+        "displayName": "Body Small",
+        "purpose": "Two-line grid tile titles."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Pickup spot, meta lines, helper text in Ink Soft."
+      },
+      "button": {
+        "displayName": "Button",
+        "purpose": "Filled and outlined button labels."
+      },
+      "status-label": {
+        "displayName": "Status Label",
+        "purpose": "Uppercase text inside status pills only."
+      },
+      "tab-label": {
+        "displayName": "Tab Label",
+        "purpose": "Tab bar labels, text scaling clamped at 1.2x."
+      }
+    },
+    "shadows": [
+      {
+        "name": "floating-photo-control",
+        "value": "0 1px 6px rgba(0,0,0,0.12)",
+        "purpose": "White 94% circular controls over photos (save heart, detail back/save). The only shadow in the system."
+      },
+      {
+        "name": "photo-hairline",
+        "value": "inset 0 0 0 0.5px rgba(0,0,0,0.06)",
+        "purpose": "Keeps white product shots from bleeding into the page."
+      }
+    ],
+    "motion": [
+      {
+        "name": "tile-press",
+        "value": "scale 0.97, 120ms ease-out",
+        "purpose": "Listing tile press feedback."
+      },
+      {
+        "name": "chip-select",
+        "value": "160ms ease-out",
+        "purpose": "Chip fill and label color change."
+      },
+      {
+        "name": "save-toggle",
+        "value": "180ms easeOutBack, scale 0.6 to 1",
+        "purpose": "Heart icon swap on save."
+      },
+      {
+        "name": "photo-hero",
+        "value": "Flutter Hero, default route duration",
+        "purpose": "Grid photo grows into the detail photo."
+      },
+      {
+        "name": "theme-snap",
+        "value": "no tween",
+        "purpose": "Palette changes only at sign-in."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "content-max",
+        "value": "520px"
+      },
+      {
+        "name": "grid-3-col",
+        "value": "650px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Filled school-color action; one per decision (Message, Post, Accept).",
+      "html": "<button class=\"ds-btn-primary\">Message seller</button>",
+      "css": ".ds-btn-primary{font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif;background:#006633;color:#fff;border:none;border-radius:10px;min-height:50px;padding:0 18px;font-size:16px;font-weight:600;letter-spacing:-0.2px;cursor:pointer;transition:background .15s} .ds-btn-primary:hover{background:#004D26} .ds-btn-primary:focus-visible{outline:2px solid #17191C;outline-offset:2px} .ds-btn-primary:disabled{background:#F2F3F5;color:#6E747E}"
+    },
+    {
+      "name": "Outlined Button",
+      "kind": "button",
+      "refersTo": "button-outlined",
+      "description": "Secondary action beside a primary, e.g. Make offer in the detail action bar.",
+      "html": "<button class=\"ds-btn-outlined\">Make offer</button>",
+      "css": ".ds-btn-outlined{font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif;background:#fff;color:#17191C;border:1px solid #E6E8EB;border-radius:10px;min-height:50px;padding:0 18px;font-size:16px;font-weight:600;letter-spacing:-0.2px;cursor:pointer} .ds-btn-outlined:hover{background:#F2F3F5} .ds-btn-outlined:focus-visible{outline:2px solid #17191C;outline-offset:2px}"
+    },
+    {
+      "name": "Category Chips",
+      "kind": "chip",
+      "refersTo": "chip-category",
+      "description": "Horizontal filter chips; grey at rest, ink when selected.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-chip-on\">All</button><button class=\"ds-chip\">Textbooks</button><button class=\"ds-chip\">Electronics</button></div>",
+      "css": ".ds-chips{display:flex;gap:8px;font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif} .ds-chip{min-height:36px;padding:7px 14px;border:none;border-radius:999px;background:#F2F3F5;color:#17191C;font-size:14px;font-weight:500;cursor:pointer;transition:background .16s ease-out,color .16s ease-out} .ds-chip:hover{background:#E6E8EB} .ds-chip:focus-visible{outline:2px solid #17191C;outline-offset:2px} .ds-chip-on,.ds-chip-on:hover{background:#17191C;color:#fff;font-weight:600}"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "Full-width grey search entry in the Home header.",
+      "html": "<label class=\"ds-search\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#5B616B\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-4-4\"/></svg><input placeholder=\"Search GMUMarket\"></label>",
+      "css": ".ds-search{display:flex;align-items:center;gap:8px;background:#F2F3F5;border-radius:10px;padding:0 12px;height:44px;font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif} .ds-search input{border:none;background:transparent;font-size:15.5px;color:#17191C;outline:none;flex:1} .ds-search input::placeholder{color:#5B616B} .ds-search:focus-within{box-shadow:inset 0 0 0 1.5px #17191C}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "Form input on the Sell and Auth screens.",
+      "html": "<input class=\"ds-input\" placeholder=\"Title\">",
+      "css": ".ds-input{font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif;background:#fff;border:1px solid #E6E8EB;border-radius:10px;padding:14px;font-size:15px;color:#17191C;width:260px} .ds-input::placeholder{color:#6E747E} .ds-input:focus{outline:none;border-color:#17191C;box-shadow:0 0 0 0.5px #17191C}"
+    },
+    {
+      "name": "Listing Tile",
+      "kind": "card",
+      "refersTo": "listing-tile",
+      "description": "Signature grid card: square 8pt photo with floating save heart, bold tabular price, two-line title, pickup spot.",
+      "html": "<a class=\"ds-tile\" href=\"#\"><div class=\"ds-tile-photo\"><span class=\"ds-tile-save\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#17191C\" stroke-width=\"1.8\"><path d=\"M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z\"/></svg></span></div><div class=\"ds-tile-price\">$28</div><div class=\"ds-tile-title\">Calculus textbook, 9th edition</div><div class=\"ds-tile-zone\">Student center</div></a>",
+      "css": ".ds-tile{display:block;width:170px;font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif;color:#17191C;text-decoration:none;transition:transform .12s ease-out} .ds-tile:active{transform:scale(.97)} .ds-tile:focus-visible{outline:2px solid #17191C;outline-offset:4px;border-radius:8px} .ds-tile-photo{position:relative;aspect-ratio:1;border-radius:8px;background:#F2F3F5;box-shadow:inset 0 0 0 .5px rgba(0,0,0,.06)} .ds-tile-save{position:absolute;top:8px;right:8px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(0,0,0,.12);display:flex;align-items:center;justify-content:center} .ds-tile-price{margin-top:8px;font-size:17px;font-weight:700;letter-spacing:-.2px;font-variant-numeric:tabular-nums} .ds-tile-title{margin-top:2px;font-size:14px;line-height:1.3} .ds-tile-zone{margin-top:4px;font-size:12.5px;color:#5B616B}"
+    },
+    {
+      "name": "Status Pills",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Uppercase status tags; the only uppercase text in the system.",
+      "html": "<div class=\"ds-pills\"><span class=\"ds-pill ds-pill-good\">Reserved</span><span class=\"ds-pill ds-pill-warn\">Pending</span><span class=\"ds-pill\">Sold</span></div>",
+      "css": ".ds-pills{display:flex;gap:6px;font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif} .ds-pill{padding:3px 6px;border-radius:4px;background:#F2F3F5;color:#5B616B;font-size:11px;font-weight:700;letter-spacing:.3px;line-height:1.2;text-transform:uppercase} .ds-pill-good{background:#E3F4E8;color:#15803D} .ds-pill-warn{background:#FDF0DF;color:#B45309}"
+    },
+    {
+      "name": "Chat Bubbles",
+      "kind": "custom",
+      "refersTo": "chat-bubble-mine",
+      "description": "Own messages in solid school color, theirs in Fill Grey; 18pt with a 6pt tail corner.",
+      "html": "<div class=\"ds-chat\"><div class=\"ds-bubble ds-theirs\">Is it still available?</div><div class=\"ds-bubble ds-mine\">Yes! Fenwick at 3?</div></div>",
+      "css": ".ds-chat{display:flex;flex-direction:column;gap:8px;width:280px;font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif} .ds-bubble{max-width:78%;padding:9px 14px;font-size:16px;line-height:1.35;border-radius:18px} .ds-theirs{align-self:flex-start;background:#F2F3F5;color:#17191C;border-bottom-left-radius:6px} .ds-mine{align-self:flex-end;background:#006633;color:#fff;border-bottom-right-radius:6px}"
+    },
+    {
+      "name": "Tab Bar",
+      "kind": "nav",
+      "refersTo": "tab-bar",
+      "description": "Translucent iOS tab bar; active item in school color with filled icon.",
+      "html": "<nav class=\"ds-tabs\"><a class=\"ds-tab ds-on\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"currentColor\"><path d=\"M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3z\"/></svg>Home</a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"M20 20l-4-4\"/></svg>Search</a><a class=\"ds-tab\" href=\"#\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><path d=\"M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z\"/></svg>Saved</a></nav>",
+      "css": ".ds-tabs{display:flex;width:320px;height:52px;background:rgba(255,255,255,.92);backdrop-filter:blur(20px);border-top:.5px solid #E6E8EB;font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif} .ds-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;font-weight:500;color:#5B616B;text-decoration:none} .ds-tab:hover{color:#17191C} .ds-tab:focus-visible{outline:2px solid #17191C;outline-offset:-2px} .ds-on,.ds-on:hover{color:#006633;font-weight:600}"
+    },
+    {
+      "name": "Bag U Mark",
+      "kind": "custom",
+      "refersTo": "brand-mark",
+      "description": "Logo from BrandMarkPainter: app icon (white on ink) and in-app mark (school color) beside the wordmark.",
+      "html": "<div class=\"ds-brand\"><span class=\"ds-icon\"><svg viewBox=\"0 0 120 120\" width=\"64\" height=\"64\"><rect width=\"120\" height=\"120\" fill=\"#17191C\"/><path d=\"M41 43v-5a19 12 0 0 1 38 0v5\" fill=\"none\" stroke=\"#fff\" stroke-width=\"6\" stroke-linecap=\"round\"/><rect x=\"28\" y=\"42\" width=\"64\" height=\"54\" rx=\"10\" fill=\"#fff\"/><path d=\"M48 54v14a12 12 0 0 0 24 0V54\" fill=\"none\" stroke=\"#17191C\" stroke-width=\"9\" stroke-linecap=\"round\"/></svg></span><span class=\"ds-word\"><svg viewBox=\"28 23 64 73\" width=\"19\" height=\"22\"><path d=\"M41 43v-5a19 12 0 0 1 38 0v5\" fill=\"none\" stroke=\"#006633\" stroke-width=\"6\" stroke-linecap=\"round\"/><rect x=\"28\" y=\"42\" width=\"64\" height=\"54\" rx=\"10\" fill=\"#006633\"/><path d=\"M48 54v14a12 12 0 0 0 24 0V54\" fill=\"none\" stroke=\"#fff\" stroke-width=\"9\" stroke-linecap=\"round\"/></svg>GMUMarket</span></div>",
+      "css": ".ds-brand{display:flex;align-items:center;gap:20px;font-family:-apple-system, 'SF Pro Text', system-ui, Roboto, sans-serif} .ds-icon svg{border-radius:22.5%;display:block} .ds-word{display:flex;align-items:center;gap:7px;font-size:24px;font-weight:800;letter-spacing:-.7px;color:#006633}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Campus Bulletin, Photo First",
+    "overview": "UnivMarket is a native iOS-first marketplace built on the Karrot model with the craft bar of Amazon, eBay and Facebook Marketplace. The item photo and its price are the interface; every other element is quiet chrome that gets out of their way. The ground is plain white, the neutrals are cool greys, and the only brand voice is the school color of the market the student belongs to (GMU green or GWU navy), applied to a short, fixed list of places.\n\nThe density is a real marketplace's: a two-column grid of square photos with bold prices, list rows with 96pt thumbnails, pinned headers and a translucent iOS tab bar. Type is the platform's own system face, tightened for SF, with prices set bold in tabular figures. Depth comes from hairlines and grey fills, not from cards or shadows; shadows exist only on the small white controls that float over photos.\n\nThe system explicitly replaces the earlier \"Bento\" look: drifting gradient blobs, coral-to-pink gradient buttons, mesh-gradient category tiles, 20px bordered cards and taglines are rejected. It must not look AI-generated.",
+    "keyCharacteristics": [
+      "White ground, cool grey fills, hairline dividers, no card borders.",
+      "School color as the single accent, on a fixed short list of surfaces.",
+      "Photos at 8pt radius, controls at 10pt, sheets at 16pt, chips as full pills.",
+      "Platform system type; prices bold with tabular figures.",
+      "SF Symbols-style line icons (CupertinoIcons) only.",
+      "Light mode only."
+    ],
+    "rules": [
+      {
+        "name": "The One Voice Rule",
+        "body": "The school color appears only on primary actions, the active tab, the wordmark and mark, the verified seal, \"Free\" prices, your own chat bubbles and send button, and the saved heart. Everything else is ink and grey.",
+        "section": "colors"
+      },
+      {
+        "name": "The Snap Rule",
+        "body": "Palettes change only at sign-in, so theme colors snap instead of tweening.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Price Rule",
+        "body": "Prices are always bold with tabular figures, set through `priceText`, so columns of prices align and \"Free\" is never styled by hand.",
+        "section": "typography"
+      },
+      {
+        "name": "The Uppercase-Is-Status Rule",
+        "body": "Uppercase text exists only inside status pills (Sample, Reserved, Sold, offer states). It is never a heading, kicker or section label.",
+        "section": "typography"
+      },
+      {
+        "name": "The Only-Over-Photos Rule",
+        "body": "A shadow is allowed only on a control floating over a photo, where it must stay legible against any image. Cards, sheets, buttons and rows are shadowless.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do let the photo and price lead every listing surface; chrome stays ink, grey and hairline.",
+      "Do confine the school color to the One Voice list: primary buttons, active tab, wordmark and mark, verified seal, \"Free\", own bubbles and send, saved heart.",
+      "Do render every price through `priceText` (bold, tabular figures, \"Free\" in school color).",
+      "Do use the radius scale by object type: 4 status, 8 photo, 10 control, 16 sheet, pill for chips.",
+      "Do separate with 0.5pt Hairline dividers and Fill Grey panels.",
+      "Do use CupertinoIcons line glyphs, filled only for an active or toggled state.",
+      "Do keep sample, reserved and sold states unmistakable with status pills and the sold scrim.",
+      "Do keep 44pt touch targets and hold layouts at 2x text and 320pt width.",
+      "Do draw the logo only through `BrandMarkPainter` / `BrandMark` / `AppIconTile`."
+    ],
+    "donts": [
+      "Don't use gradients, gradient buttons, blobs or mesh-gradient tiles.",
+      "Don't put borders or shadows on cards; shadows belong only to controls floating over photos.",
+      "Don't use the school color for selected chips, secondary text or decoration.",
+      "Don't use uppercase or letter-spaced labels outside status pills; no kickers or taglines.",
+      "Don't bundle or substitute a display font; the system face is the type.",
+      "Don't redraw or export the logo from anything other than `BrandMarkPainter`.",
+      "Don't wire the dark palette or add a dark-mode surface; the system is light only."
+    ]
+  }
+}

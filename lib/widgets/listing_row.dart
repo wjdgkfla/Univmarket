@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import '../data/models.dart';
 import '../theme/tokens.dart';
 import 'listing_image.dart';
+import 'pill.dart';
 
+/// List row: photo left, title, pickup spot and condition, price.
 class ListingRow extends StatelessWidget {
   final Listing listing;
   const ListingRow({super.key, required this.listing});
@@ -12,63 +14,76 @@ class ListingRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Material(
-      color: c.surface,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        onTap: () => context.push('/listing/${listing.id}'),
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: c.line),
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 66,
-                height: 66,
-                child: ListingImage(listing: listing),
+    final status = listing.status;
+    return InkWell(
+      onTap: () => context.push('/listing/${listing.id}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: gutter, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 96,
+              height: 96,
+              child: ListingImage(listing: listing),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 2),
+                  Text(
+                    listing.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 15.5, height: 1.3, color: c.ink),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${listing.zone} · ${listing.condition.label}${listing.trades ? ' · Trades ok' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 13, color: c.inkSoft),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      if (status != 'available')
+                        Pill(
+                          label: status,
+                          tone: status == 'sold'
+                              ? PillTone.neutral
+                              : PillTone.good,
+                        ),
+                      priceText(context, listing.price),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      listing.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: c.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      '${listing.zone} · ${listing.condition.label}${listing.trades ? ' · Trades ok' : ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: c.inkSoft),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      listing.price == 0 ? 'Free' : '\$${listing.price}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: c.ink,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// Rows separated by hairlines inset to the text column.
+class ListingRows extends StatelessWidget {
+  const ListingRows({super.key, required this.listings});
+  final List<Listing> listings;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (var i = 0; i < listings.length; i++) ...[
+        if (i > 0) const Divider(indent: gutter + 96 + 14, endIndent: gutter),
+        ListingRow(listing: listings[i]),
+      ],
+    ],
+  );
 }

@@ -21,7 +21,7 @@ void main() {
     expect(find.byType(DropdownButton<String>), findsNothing);
     final theme = Theme.of(tester.element(find.text('GMUMarket')));
     expect(theme.extension<AppColors>()!.accent, const Color(0xFF006633));
-    expect(find.textContaining('LOCAL DEMO'), findsOneWidget);
+    expect(find.textContaining('LOCAL DEMO'), findsNothing);
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Search').last);
     await tester.pumpAndSettle();

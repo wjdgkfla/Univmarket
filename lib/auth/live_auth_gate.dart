@@ -231,7 +231,9 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
     if (repo != null && repo.ready && repo.bootstrapError == null) return _app!;
     Widget home;
     if (_initializing || _processingLink) {
-      home = const Scaffold(body: Center(child: CircularProgressIndicator()));
+      home = const Scaffold(
+        body: Center(child: CircularProgressIndicator.adaptive()),
+      );
     } else if (_recovering) {
       home = PasswordRecoveryScreen(
         service: SupabaseRecoveryService(widget.client),
@@ -280,7 +282,7 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: !repo.ready
-                ? const CircularProgressIndicator()
+                ? const CircularProgressIndicator.adaptive()
                 : Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

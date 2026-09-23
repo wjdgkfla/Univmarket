@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -8,6 +9,7 @@ import '../data/repository.dart';
 import '../data/conversation_sync.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
+import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
 import '../widgets/async_action.dart';
 
@@ -101,7 +103,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
           title: const Text('Conversation'),
           leading: IconButton(
             tooltip: 'Go back',
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(CupertinoIcons.chevron_back),
             onPressed: () =>
                 context.canPop() ? context.pop() : context.go('/inbox'),
           ),
@@ -121,7 +123,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   ],
                 ),
               )
-            : const Center(child: CircularProgressIndicator()),
+            : const Center(child: CircularProgressIndicator.adaptive()),
       );
     }
     final seller = repo.getSeller(conversation.sellerId);
@@ -129,134 +131,199 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
 
     return Scaffold(
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             if (_sync?.failed == true) _retryBanner(),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: c.surface,
-                border: Border(bottom: BorderSide(color: c.line)),
+                color: c.bg,
+                border: Border(bottom: BorderSide(color: c.line, width: 0.5)),
               ),
               child: Row(
                 children: [
-                  Semantics(
-                    button: true,
-                    label: 'Go back',
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => context.canPop()
-                          ? context.pop()
-                          : context.go('/inbox'),
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        alignment: Alignment.center,
-                        child: Icon(
-                          Icons.chevron_left_rounded,
-                          size: 20,
-                          color: c.ink,
-                        ),
+                  IconButton(
+                    tooltip: 'Go back',
+                    icon: Icon(CupertinoIcons.chevron_back, color: c.ink),
+                    onPressed: () =>
+                        context.canPop() ? context.pop() : context.go('/inbox'),
+                  ),
+                  Avatar(initials: seller?.initials ?? '?', size: 34),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      seller?.name ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                        color: c.ink,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Avatar(initials: seller?.initials ?? '?'),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          seller?.name ?? '',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14.5,
-                            color: c.ink,
-                          ),
-                        ),
-                        Text(
-                          '${listing?.title ?? ''} · \$${listing?.price ?? 0}',
-                          style: TextStyle(fontSize: 11.5, color: c.inkSoft),
-                        ),
-                      ],
-                    ),
-                  ),
                 ],
               ),
             ),
-            Expanded(
-              child: ListView(
-                reverse: true,
-                padding: const EdgeInsets.all(16),
-                children: [
-                  for (final m in conversation.messages.reversed) ...[
-                    _MessageBubble(
-                      message: m,
-                      listing: listing,
-                      conversationId: conversation.id,
+            if (listing != null)
+              InkWell(
+                onTap: () => context.push('/listing/${listing.id}'),
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(gutter, 10, gutter, 10),
+                  decoration: BoxDecoration(
+                    color: c.bg,
+                    border: Border(
+                      bottom: BorderSide(color: c.line, width: 0.5),
                     ),
-                    const SizedBox(height: 10),
+                  ),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 44,
+                        height: 44,
+                        child: ListingImage(
+                          listing: listing,
+                          radius: 6,
+                          showStatus: false,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                if (listing.status != 'available') ...[
+                                  Pill(
+                                    label: listing.status,
+                                    tone: listing.status == 'sold'
+                                        ? PillTone.neutral
+                                        : PillTone.good,
+                                  ),
+                                  const SizedBox(width: 6),
+                                ],
+                                Expanded(
+                                  child: Text(
+                                    listing.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: c.ink,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            priceText(context, listing.price, size: 14.5),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        CupertinoIcons.chevron_forward,
+                        size: 16,
+                        color: c.inkFaint,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Expanded(
+              child: ColoredBox(
+                color: c.bg,
+                child: ListView(
+                  reverse: true,
+                  padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),
+                  children: [
+                    for (final m in conversation.messages.reversed) ...[
+                      _MessageBubble(
+                        message: m,
+                        listing: listing,
+                        conversationId: conversation.id,
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             Container(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+              padding: EdgeInsets.fromLTRB(
+                12,
+                8,
+                8,
+                8 + MediaQuery.of(context).padding.bottom,
+              ),
               decoration: BoxDecoration(
-                color: c.surface,
-                border: Border(top: BorderSide(color: c.line)),
+                color: c.bg,
+                border: Border(top: BorderSide(color: c.line, width: 0.5)),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Expanded(
                     child: TextField(
                       controller: draftController,
                       maxLength: 2000,
+                      minLines: 1,
+                      maxLines: 5,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => _send(),
-                      style: TextStyle(color: c.ink, fontSize: 13.5),
+                      style: TextStyle(color: c.ink, fontSize: 16),
                       decoration: InputDecoration(
                         counterText: '',
+                        isDense: true,
                         hintText:
-                            'Message ${seller?.name.split(' ').first ?? ''}…',
-                        hintStyle: TextStyle(color: c.inkFaint, fontSize: 13.5),
-                        filled: true,
+                            'Message ${seller?.name.split(' ').first ?? ''}',
                         fillColor: c.surface2,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 15,
+                          horizontal: 16,
                           vertical: 11,
                         ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(999),
-                          borderSide: BorderSide(color: c.line, width: 1.5),
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide.none,
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(999),
-                          borderSide: BorderSide(color: c.line, width: 1.5),
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(22),
+                          borderSide: BorderSide(color: c.line),
                         ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   Semantics(
                     button: true,
                     label: 'Send message',
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
+                    excludeSemantics: true,
+                    child: InkResponse(
                       onTap: _sending ? null : _send,
-                      child: Container(
+                      radius: 24,
+                      child: SizedBox(
                         width: 44,
                         height: 44,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: c.accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.send_rounded,
-                          size: 16,
-                          color: Colors.white,
+                        child: Center(
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: _sending ? c.surface2 : c.accent,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              CupertinoIcons.arrow_up,
+                              size: 18,
+                              color: _sending ? c.inkFaint : c.accentInk,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -293,7 +360,7 @@ class _MessageBubble extends StatelessWidget {
           child: Text(
             m.body,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11.5, color: c.inkFaint),
+            style: TextStyle(fontSize: 12.5, color: c.inkSoft),
           ),
         ),
       );
@@ -309,72 +376,64 @@ class _MessageBubble extends StatelessWidget {
       return Align(
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
         child: FractionallySizedBox(
-          widthFactor: 0.84,
+          widthFactor: 0.8,
           alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  border: Border.all(color: c.line, width: 1.5),
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      alignment: WrapAlignment.spaceBetween,
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        Text(
-                          'CASH OFFER',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: c.inkFaint,
-                            letterSpacing: 0.6,
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 4),
+            decoration: BoxDecoration(
+              color: mine ? c.accentWash : c.surface2,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Icon(CupertinoIcons.tag, size: 15, color: c.inkSoft),
+                          Text(
+                            mine ? 'Your cash offer' : 'Cash offer',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: c.inkSoft,
+                            ),
                           ),
-                        ),
-                        Pill(label: m.status.name, tone: tone),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '\$${m.amount}',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: c.ink,
+                          Pill(label: m.status.name, tone: tone),
+                        ],
                       ),
-                    ),
-                    Text(
-                      'for ${listing?.title ?? ''}',
-                      style: TextStyle(fontSize: 11.5, color: c.inkSoft),
-                    ),
-                  ],
-                ),
-              ),
-              if (m.status == OfferStatus.pending && !mine)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    border: Border.all(color: c.line, width: 1.5),
-                    borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(16),
-                    ),
-                  ),
-                  child: _OfferActions(
-                    conversationId: conversationId,
-                    offerId: m.id,
+                      const SizedBox(height: 6),
+                      priceText(
+                        context,
+                        m.amount,
+                        size: 26,
+                        weight: FontWeight.w800,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'for ${listing?.title ?? ''}',
+                        style: TextStyle(fontSize: 13, color: c.inkSoft),
+                      ),
+                    ],
                   ),
                 ),
-            ],
+                if (m.status == OfferStatus.pending && !mine)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                    child: _OfferActions(
+                      conversationId: conversationId,
+                      offerId: m.id,
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       );
@@ -387,24 +446,26 @@ class _MessageBubble extends StatelessWidget {
       child: FractionallySizedBox(
         widthFactor: 0.78,
         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          decoration: BoxDecoration(
-            color: mine ? c.accent : c.surface,
-            border: mine ? null : Border.all(color: c.line),
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(16),
-              topRight: const Radius.circular(16),
-              bottomLeft: Radius.circular(mine ? 16 : 4),
-              bottomRight: Radius.circular(mine ? 4 : 16),
+        child: Align(
+          alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            decoration: BoxDecoration(
+              color: mine ? c.accent : c.surface2,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(mine ? 18 : 6),
+                bottomRight: Radius.circular(mine ? 6 : 18),
+              ),
             ),
-          ),
-          child: Text(
-            t.body,
-            style: TextStyle(
-              fontSize: 13.5,
-              height: 1.4,
-              color: mine ? Colors.white : c.ink,
+            child: Text(
+              t.body,
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.35,
+                color: mine ? c.accentInk : c.ink,
+              ),
             ),
           ),
         ),
@@ -446,8 +507,8 @@ class _OfferActionsState extends State<_OfferActions> {
         Expanded(
           child: _TicketButton(
             label: 'Decline',
-            bg: c.surface2,
-            fg: c.inkSoft,
+            bg: c.surface,
+            fg: c.ink,
             onTap: _busy ? null : () => _respond(false),
           ),
         ),
@@ -455,8 +516,8 @@ class _OfferActionsState extends State<_OfferActions> {
         Expanded(
           child: _TicketButton(
             label: 'Accept',
-            bg: c.good,
-            fg: Colors.white,
+            bg: c.accent,
+            fg: c.accentInk,
             onTap: _busy ? null : () => _respond(true),
           ),
         ),
@@ -480,9 +541,9 @@ class _TicketButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final material = Material(
       color: bg,
-      borderRadius: BorderRadius.circular(11),
+      borderRadius: BorderRadius.circular(AppRadius.control),
       child: InkWell(
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 13),
@@ -490,7 +551,7 @@ class _TicketButton extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 13.5,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
               color: fg,
             ),

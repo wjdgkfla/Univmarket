@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/tokens.dart';
 
-enum PillTone { good, warn, bad, neutral, accent }
+enum PillTone { good, warn, bad, neutral, accent, overlay }
 
+/// Small status tag (Sample, Reserved, Sold, offer states).
 class Pill extends StatelessWidget {
   final String label;
   final PillTone tone;
@@ -18,20 +19,23 @@ class Pill extends StatelessWidget {
       PillTone.bad => (c.badWash, c.bad),
       PillTone.neutral => (c.surface2, c.inkSoft),
       PillTone.accent => (c.accentWash, c.accentDeep),
+      PillTone.overlay => (const Color(0xB3111214), Colors.white),
     };
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label.toUpperCase(),
+        maxLines: 1,
         style: TextStyle(
           color: fg,
-          fontSize: 10.5,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
-          letterSpacing: 0.4,
+          letterSpacing: 0.3,
+          height: 1.2,
         ),
       ),
     );
