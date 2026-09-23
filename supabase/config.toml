@@ -77,3 +77,8 @@ backend = "postgres"
 # the function authorizes each run with the Vault token instead.
 [functions.cleanup-listing-photos]
 verify_jwt = false
+
+# Called by the reports insert trigger via pg_net, not by users; the
+# function authorizes each call with the Vault token instead.
+[functions.notify-new-report]
+verify_jwt = false
