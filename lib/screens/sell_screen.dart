@@ -130,7 +130,23 @@ class _SellScreenState extends State<SellScreen> {
   @override
   Widget build(BuildContext context) {
     final repo = context.watch<Repository>();
+    final editing = widget.editingId == null
+        ? null
+        : repo.getListing(widget.editingId!);
+    if (widget.editingId != null &&
+        (editing == null || editing.sellerId != repo.me.id)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Listing unavailable')),
+        body: Center(
+          child: TextButton(
+            onPressed: () => context.go('/'),
+            child: const Text('Back to marketplace'),
+          ),
+        ),
+      );
+    }
     return ScreenScaffold(
+      navClearance: widget.editingId == null,
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Form(

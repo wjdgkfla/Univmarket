@@ -24,6 +24,22 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   ConversationSync? _sync;
   late final Repository _repo;
   bool _sending = false;
+  bool _loaded = false;
+
+  Future<void> _send() async {
+    final draft = draftController.text;
+    final text = draft.trim();
+    if (text.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    try {
+      await _repo.sendMessage(widget.id, text);
+      if (mounted && draftController.text == draft) draftController.clear();
+    } catch (e) {
+      if (mounted) showError(context, e);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
 
   @override
   void initState() {
@@ -34,7 +50,10 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _sync = ConversationSync(
       changes: repo.conversationChanges(widget.id),
-      load: () => repo.refreshConversation(widget.id),
+      load: () async {
+        await repo.refreshConversation(widget.id);
+        if (mounted) setState(() => _loaded = true);
+      },
     )..addListener(_syncChanged);
     unawaited(_sync!.refresh());
   }
@@ -87,10 +106,21 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                 context.canPop() ? context.pop() : context.go('/inbox'),
           ),
         ),
-        body: _sync == null
-            ? const Center(child: Text('This conversation is unavailable.'))
-            : _sync!.failed
+        body: _sync?.failed == true
             ? _retryBanner()
+            : _sync == null || _loaded
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('This conversation is unavailable.'),
+                    TextButton(
+                      onPressed: () => context.go('/inbox'),
+                      child: const Text('Back to inbox'),
+                    ),
+                  ],
+                ),
+              )
             : const Center(child: CircularProgressIndicator()),
       );
     }
@@ -182,8 +212,12 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                   Expanded(
                     child: TextField(
                       controller: draftController,
+                      maxLength: 2000,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: (_) => _send(),
                       style: TextStyle(color: c.ink, fontSize: 13.5),
                       decoration: InputDecoration(
+                        counterText: '',
                         hintText:
                             'Message ${seller?.name.split(' ').first ?? ''}…',
                         hintStyle: TextStyle(color: c.inkFaint, fontSize: 13.5),
@@ -210,25 +244,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                     label: 'Send message',
                     child: InkWell(
                       customBorder: const CircleBorder(),
-                      onTap: () async {
-                        final draft = draftController.text;
-                        final text = draft.trim();
-                        if (text.isEmpty || _sending) return;
-                        setState(() => _sending = true);
-                        try {
-                          await context.read<Repository>().sendMessage(
-                            conversation.id,
-                            text,
-                          );
-                          if (mounted && draftController.text == draft) {
-                            draftController.clear();
-                          }
-                        } catch (e) {
-                          if (context.mounted) showError(context, e);
-                        } finally {
-                          if (mounted) setState(() => _sending = false);
-                        }
-                      },
+                      onTap: _sending ? null : _send,
                       child: Container(
                         width: 44,
                         height: 44,

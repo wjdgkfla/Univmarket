@@ -55,7 +55,7 @@ class ListingRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      '\$${listing.price}',
+                      listing.price == 0 ? 'Free' : '\$${listing.price}',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,

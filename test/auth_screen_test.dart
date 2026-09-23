@@ -51,7 +51,12 @@ void main() {
   ) async {
     final auth = FakeAuth();
     await tester.pumpWidget(MaterialApp(home: AuthScreen(auth: auth)));
-    for (final email in ['student@umd.edu', 'student@mail.gmu.edu']) {
+    for (final email in [
+      'student@umd.edu',
+      'student@mail.gmu.edu',
+      'student@fenwick.edu',
+      'student@gmu.edu.attacker.test',
+    ]) {
       await tester.enterText(find.byKey(const Key('auth-email')), email);
       await tester.enterText(
         find.byKey(const Key('auth-password')),

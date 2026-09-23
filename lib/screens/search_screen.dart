@@ -15,6 +15,22 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   String query = '', sort = 'Newest';
   bool under50 = false, likeNew = false, free = false;
+  final _queryController = TextEditingController();
+
+  @override
+  void dispose() {
+    _queryController.dispose();
+    super.dispose();
+  }
+
+  void _resetSearch() {
+    _queryController.clear();
+    setState(() {
+      query = '';
+      under50 = likeNew = free = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final results = context
@@ -49,10 +65,21 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
             const SizedBox(height: 18),
             TextField(
+              controller: _queryController,
               decoration: InputDecoration(
                 labelText: 'Search listings',
                 hintText: 'Textbooks, a bike, headphones…',
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: query.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close),
+                        onPressed: () {
+                          _queryController.clear();
+                          setState(() => query = '');
+                        },
+                      ),
                 filled: true,
                 fillColor: context.colors.surface,
                 border: OutlineInputBorder(
@@ -110,12 +137,21 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
             if (results.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 48),
-                child: Center(
-                  child: Text(
-                    'No matches. Try another search or remove a filter.',
-                  ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 48),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Text(
+                      'No matches. Try another search or remove a filter.',
+                      textAlign: TextAlign.center,
+                    ),
+                    if (query.isNotEmpty || under50 || likeNew || free)
+                      TextButton(
+                        onPressed: _resetSearch,
+                        child: const Text('Clear search and filters'),
+                      ),
+                  ],
                 ),
               ),
             for (final l in results)

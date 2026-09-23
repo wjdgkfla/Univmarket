@@ -22,10 +22,13 @@ class ScreenScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
-    final bottomPad = navClearance ? navClearanceHeight : 0.0;
+    final bottomPad =
+        (navClearance ? navClearanceHeight : 0.0) +
+        MediaQuery.of(context).padding.bottom;
 
     final body = scroll
         ? SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: padding.add(EdgeInsets.only(bottom: bottomPad)),
             child: child,
           )
