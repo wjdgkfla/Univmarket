@@ -6,6 +6,7 @@ import '../theme/tokens.dart';
 import 'fade_slide_in.dart';
 import 'listing_image.dart';
 import 'pill.dart';
+import 'time_ago.dart';
 
 /// List row: photo left, title, pickup spot and condition, price.
 class ListingRow extends StatelessWidget {
@@ -42,7 +43,13 @@ class ListingRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${listing.zone} · ${listing.condition.label}${listing.trades ? ' · Trades ok' : ''}',
+                    [
+                      listing.zone,
+                      listing.condition.label,
+                      if (listing.trades) 'Trades ok',
+                      if (listing.createdAt != null)
+                        timeAgo(listing.createdAt!),
+                    ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 13, color: c.inkSoft),

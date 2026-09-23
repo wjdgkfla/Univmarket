@@ -10,6 +10,7 @@ import '../widgets/avatar.dart';
 import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
 import '../widgets/safety_menu.dart';
+import '../widgets/time_ago.dart';
 
 /// Listings with a message/offer action in flight.
 final _messaging = <String>{};
@@ -72,29 +73,6 @@ class ListingDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: children,
-      ),
-    );
-
-    Widget notice(String text) => Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(top: 10),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: c.surface2,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(CupertinoIcons.info_circle, size: 18, color: c.inkSoft),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(fontSize: 13.5, height: 1.4, color: c.inkSoft),
-            ),
-          ),
-        ],
       ),
     );
 
@@ -176,13 +154,13 @@ class ListingDetailScreen extends StatelessWidget {
                 ]
         : [
             OutlinedButton(
-              onPressed: !listing.isSample && listing.status == 'available'
+              onPressed: listing.status == 'available'
                   ? () => message(offer: true)
                   : null,
               child: const Text('Make offer'),
             ),
             FilledButton(
-              onPressed: listing.isSample ? null : () => message(),
+              onPressed: () => message(),
               child: const Text('Message seller'),
             ),
           ];
@@ -204,7 +182,7 @@ class ListingDetailScreen extends StatelessWidget {
                   context.canPop() ? context.pop() : context.go('/'),
             ),
             actions: [
-              if (!mine && !listing.isSample) ...[
+              if (!mine) ...[
                 _PhotoButton(
                   tooltip: 'More',
                   icon: CupertinoIcons.ellipsis,
@@ -216,14 +194,21 @@ class ListingDetailScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-              ],
-              _PhotoButton(
-                tooltip: saved ? 'Remove from saved' : 'Save listing',
-                icon: saved ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                color: saved ? c.accent : null,
-                onPressed: () =>
-                    runAction(context, () => repo.toggleFavorite(id)),
-              ),
+                _PhotoButton(
+                  tooltip: saved ? 'Remove from saved' : 'Save listing',
+                  icon: saved
+                      ? CupertinoIcons.heart_fill
+                      : CupertinoIcons.heart,
+                  color: saved ? c.accent : null,
+                  onPressed: () =>
+                      runAction(context, () => repo.toggleFavorite(id)),
+                ),
+              ] else if (listing.status == 'available')
+                _PhotoButton(
+                  tooltip: 'More',
+                  icon: CupertinoIcons.ellipsis,
+                  onPressed: () => _ownerMenu(context, repo, id),
+                ),
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -243,21 +228,14 @@ class ListingDetailScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(gutter, 14, gutter, 14),
                   child: Row(
                     children: [
-                      Avatar(
-                        initials: listing.isSample
-                            ? 'S'
-                            : seller?.initials ?? '?',
-                        size: 44,
-                      ),
+                      Avatar(initials: seller?.initials ?? '?', size: 44),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              listing.isSample
-                                  ? 'Sample seller'
-                                  : seller?.name ?? 'Seller',
+                              seller?.name ?? 'Seller',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -266,17 +244,15 @@ class ListingDetailScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              listing.isSample
-                                  ? 'Preview only · sign-in disabled'
-                                  : repo.isDemo
+                              repo.isDemo
                                   ? 'Demo profile · identity not verified'
-                                  : 'Student seller',
+                                  : 'Verified student · ${repo.me.school}',
                               style: TextStyle(fontSize: 13, color: c.inkSoft),
                             ),
                           ],
                         ),
                       ),
-                      if (!listing.isSample && !repo.isDemo)
+                      if (!repo.isDemo)
                         Icon(
                           CupertinoIcons.checkmark_seal_fill,
                           size: 20,
@@ -305,7 +281,13 @@ class ListingDetailScreen extends StatelessWidget {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        '${listing.tag} · ${listing.condition.label}${listing.trades ? ' · Trades ok' : ''}',
+                        [
+                          listing.tag,
+                          listing.condition.label,
+                          if (listing.trades) 'Trades ok',
+                          if (listing.createdAt != null)
+                            'Posted ${timeAgo(listing.createdAt!)}',
+                        ].join(' · '),
                         style: TextStyle(fontSize: 13.5, color: c.inkSoft),
                       ),
                       if (listing.status != 'available')
@@ -350,10 +332,6 @@ class ListingDetailScreen extends StatelessWidget {
                     listing.description,
                     style: TextStyle(fontSize: 16, height: 1.55, color: c.ink),
                   ),
-                  if (listing.isSample)
-                    notice(
-                      'This sample is not for sale. Messaging and offers are unavailable.',
-                    ),
                 ]),
                 const SizedBox(height: 8),
               ],
@@ -505,6 +483,61 @@ class _OfferDialogState extends State<OfferDialog> {
 
 /// Dialog button in the platform's own style: a Cupertino action on iOS,
 /// a Material text or filled button elsewhere.
+/// "More" on your own available listing: delete it, after confirming.
+Future<void> _ownerMenu(
+  BuildContext context,
+  Repository repo,
+  String id,
+) async {
+  final choice = await showCupertinoModalPopup<String>(
+    context: context,
+    useRootNavigator: true,
+    builder: (sheet) => CupertinoActionSheet(
+      actions: [
+        CupertinoActionSheetAction(
+          isDestructiveAction: true,
+          onPressed: () => Navigator.pop(sheet, 'delete'),
+          child: const Text('Delete listing'),
+        ),
+      ],
+      cancelButton: CupertinoActionSheetAction(
+        onPressed: () => Navigator.pop(sheet),
+        child: const Text('Cancel'),
+      ),
+    ),
+  );
+  if (choice != 'delete' || !context.mounted) return;
+  final confirmed = await showAdaptiveDialog<bool>(
+    context: context,
+    builder: (dialog) => AlertDialog.adaptive(
+      title: const Text('Delete this listing?'),
+      content: const Text(
+        'It is removed from the market and from students\' saved items. This can\'t be undone.',
+      ),
+      actions: [
+        dialogAction(dialog, 'Cancel', () => Navigator.pop(dialog, false)),
+        dialogAction(
+          dialog,
+          'Delete',
+          () => Navigator.pop(dialog, true),
+          primary: true,
+          destructive: true,
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true || !context.mounted) return;
+  try {
+    await repo.deleteListing(id);
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    context.canPop() ? context.pop() : context.go('/');
+    messenger.showSnackBar(const SnackBar(content: Text('Listing deleted.')));
+  } catch (e) {
+    if (context.mounted) showError(context, e);
+  }
+}
+
 Widget dialogAction(
   BuildContext context,
   String label,

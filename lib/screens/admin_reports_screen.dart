@@ -10,22 +10,8 @@ import '../widgets/async_action.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/fade_slide_in.dart';
 import '../widgets/pill.dart';
+import '../widgets/time_ago.dart';
 import 'listing_detail_screen.dart' show dialogAction;
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
 
 /// Moderator queue: open reports at your university, newest first.
 class AdminReportsScreen extends StatefulWidget {
@@ -198,7 +184,7 @@ class _ReportRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final date = report.createdAt?.toLocal();
+    final date = report.createdAt;
     final meta = TextStyle(fontSize: 13, color: c.inkSoft, height: 1.35);
     return InkWell(
       onTap: onTap,
@@ -220,8 +206,7 @@ class _ReportRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (date != null)
-                  Text('${_months[date.month - 1]} ${date.day}', style: meta),
+                if (date != null) Text(timeAgo(date), style: meta),
               ],
             ),
             const SizedBox(height: 4),

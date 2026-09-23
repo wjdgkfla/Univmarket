@@ -9,8 +9,73 @@ import '../theme/tokens.dart';
 import '../widgets/async_action.dart';
 import '../widgets/avatar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/legal_links.dart';
 import '../widgets/listing_row.dart';
+import 'auth_screen.dart' show validDisplayName;
 import 'listing_detail_screen.dart' show dialogAction;
+
+Future<void> _editName(BuildContext context, Repository repo) async {
+  final name = await showAdaptiveDialog<String>(
+    context: context,
+    builder: (_) => _NameDialog(initial: repo.me.name),
+  );
+  if (name != null && name != repo.me.name && context.mounted) {
+    await runAction(context, () => repo.updateDisplayName(name));
+  }
+}
+
+class _NameDialog extends StatefulWidget {
+  const _NameDialog({required this.initial});
+  final String initial;
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final error = validDisplayName(_controller.text);
+    if (error != null) {
+      setState(() => _error = error);
+      return;
+    }
+    Navigator.pop(context, _controller.text.trim());
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog.adaptive(
+    title: const Text('Your name'),
+    content: Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        type: MaterialType.transparency,
+        child: TextField(
+          controller: _controller,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          maxLength: 40,
+          onSubmitted: (_) => _save(),
+          decoration: InputDecoration(
+            helperText: 'Shown to other students on your listings.',
+            errorText: _error,
+          ),
+        ),
+      ),
+    ),
+    actions: [
+      dialogAction(context, 'Cancel', () => Navigator.pop(context)),
+      dialogAction(context, 'Save', _save, primary: true),
+    ],
+  );
+}
 
 Future<void> _confirmDelete(BuildContext context, Repository repo) async {
   final confirmed = await showAdaptiveDialog<bool>(
@@ -71,14 +136,30 @@ class ProfileScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        repo.me.name,
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.3,
-                          color: c.ink,
-                        ),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              repo.me.name,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.3,
+                                color: c.ink,
+                              ),
+                            ),
+                          ),
+                          if (!repo.isDemo)
+                            IconButton(
+                              tooltip: 'Edit name',
+                              icon: Icon(
+                                CupertinoIcons.pencil,
+                                size: 20,
+                                color: c.inkSoft,
+                              ),
+                              onPressed: () => _editName(context, repo),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 4),
                       Row(
@@ -201,6 +282,23 @@ class ProfileScreen extends StatelessWidget {
               onTap: () => context.push('/admin/reports'),
             ),
           ],
+          Container(height: 8, color: c.surface2),
+          for (final (icon, label, url) in [
+            (CupertinoIcons.lock_shield, 'Privacy Policy', privacyUrl),
+            (CupertinoIcons.doc_text, 'Terms of Use', termsUrl),
+            (
+              CupertinoIcons.envelope,
+              'Contact support',
+              'mailto:$supportEmail',
+            ),
+          ])
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: gutter),
+              leading: Icon(icon, color: c.ink),
+              title: Text(label),
+              trailing: Icon(CupertinoIcons.chevron_forward, color: c.inkFaint),
+              onTap: () => openLegalLink(context, url),
+            ),
           if (!repo.isDemo) ...[
             Container(height: 8, color: c.surface2),
             ListTile(

@@ -470,6 +470,7 @@ class DemoRepository extends Repository {
       universityId: _school,
       imageSource: imageSource,
       status: existing?.status ?? 'available',
+      createdAt: existing?.createdAt ?? DateTime.now(),
     );
     if (editingId != null) {
       _items[_items.indexWhere((l) => l.id == editingId)] = listing;
@@ -488,6 +489,19 @@ class DemoRepository extends Repository {
     _items[_items.indexWhere((l) => l.id == id)] = listing.copyWith(
       status: 'sold',
     );
+    await _save();
+  }
+
+  @override
+  Future<void> deleteListing(String id) async {
+    final listing = getListing(id);
+    if (listing == null ||
+        listing.sellerId != me.id ||
+        listing.status != 'available') {
+      throw StateError('Only your available listings can be deleted.');
+    }
+    _items.removeWhere((l) => l.id == id);
+    _saved.remove(id);
     await _save();
   }
 

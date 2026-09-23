@@ -6,6 +6,7 @@ import 'package:univmarket_app/screens/auth_screen.dart';
 class FakeAuth implements AuthService {
   String? email;
   String? password;
+  String? name;
   bool registered = false;
   bool fail = false;
   @override
@@ -16,8 +17,9 @@ class FakeAuth implements AuthService {
   }
 
   @override
-  Future<void> signUp(String email, String password) async {
+  Future<void> signUp(String email, String password, String name) async {
     registered = true;
+    this.name = name;
     this.email = email;
     this.password = password;
   }
@@ -75,8 +77,15 @@ void main() {
 
     await tester.enterText(find.byKey(const Key('auth-email')), 'a@gwu.edu');
     await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
+    await tester.pump();
+    // A name is required to create an account.
+    expect(find.text('Enter your name.'), findsOneWidget);
+    expect(auth.registered, isFalse);
+    await tester.enterText(find.byKey(const Key('auth-name')), '  Jordan Lee ');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
     await tester.pumpAndSettle();
     expect(auth.email, 'a@gwu.edu');
+    expect(auth.name, 'Jordan Lee');
   });
 
   testWidgets(
@@ -98,6 +107,7 @@ void main() {
       expect(find.textContaining('Unable to sign in'), findsOneWidget);
       await tester.tap(find.text('Create an account'));
       await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('auth-name')), 'Jordan Lee');
       await tester.tap(find.widgetWithText(FilledButton, 'Create account'));
       await tester.pumpAndSettle();
       expect(auth.registered, isTrue);

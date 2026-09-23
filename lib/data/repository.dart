@@ -147,6 +147,30 @@ class Repository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Removes your available listing from the market. Its photo is cleaned
+  /// up by the nightly storage job.
+  Future<void> deleteListing(String id) async {
+    _requireConfirmedAccount();
+    final listing = getListing(id);
+    if (listing == null ||
+        listing.sellerId != _me.id ||
+        listing.status != 'available') {
+      throw StateError('Only your available listings can be deleted.');
+    }
+    await _db
+        .from('listings')
+        .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
+        .eq('id', id)
+        .eq('seller_id', _me.id)
+        .eq('status', 'available')
+        .isFilter('deleted_at', null)
+        .select('id')
+        .single();
+    _listings.removeWhere((l) => l.id == id);
+    _favorites.remove(id);
+    notifyListeners();
+  }
+
   /// Ends the reservation on your listing: [sold] marks it sold, otherwise
   /// it is relisted as available. The buyer gets a note in the chat.
   Future<void> finishReservation(String listingId, {required bool sold}) async {
@@ -207,6 +231,7 @@ class Repository extends ChangeNotifier {
         (item) => item.id == conversationId,
       );
       _conversations[index] = current.copyWith(
+        updatedAt: DateTime.now(),
         messages: [
           ...current.messages,
           OfferMessage(
@@ -285,8 +310,15 @@ class Repository extends ChangeNotifier {
     return cached;
   }
 
+  /// Most recent activity first, like any inbox.
   List<Conversation> listConversations() => List.unmodifiable(
-    _conversations.where((c) => !_blocked.contains(c.sellerId)),
+    _conversations.where((c) => !_blocked.contains(c.sellerId)).toList()
+      ..sort((a, b) {
+        final at = a.updatedAt, bt = b.updatedAt;
+        if (at == null) return bt == null ? 0 : 1; // undated last
+        if (bt == null) return -1;
+        return bt.compareTo(at);
+      }),
   );
 
   List<Stream<Object?>> conversationChanges(String id) => [
@@ -308,8 +340,18 @@ class Repository extends ChangeNotifier {
       if (user == null || user.isAnonymous || user.emailConfirmedAt == null) {
         throw StateError('A confirmed email account is required.');
       }
+      // The name given at sign-up names a brand-new profile; an existing
+      // profile keeps its own name.
+      final signUpName = user.userMetadata?['display_name'];
       final profileRow =
-          await _db.rpc('ensure_profile') as Map<String, dynamic>;
+          await _db.rpc(
+                'ensure_profile',
+                params: {
+                  if (signUpName is String && signUpName.trim().isNotEmpty)
+                    'p_display_name': signUpName.trim(),
+                },
+              )
+              as Map<String, dynamic>;
       _universityId = profileRow['university_id'] as String?;
       _campusId = profileRow['home_campus_id'] as String?;
       if (_universityId == null || _campusId == null) {
@@ -476,6 +518,7 @@ class Repository extends ChangeNotifier {
       universityId: r['university_id'] as String,
       status: r['status'] as String? ?? 'available',
       imageSource: image,
+      createdAt: DateTime.tryParse(r['created_at'] as String? ?? ''),
     );
   }
 
@@ -544,6 +587,24 @@ class Repository extends ChangeNotifier {
         'p_reason': reason,
       },
     );
+  }
+
+  /// Renames you everywhere other students see you.
+  Future<void> updateDisplayName(String name) async {
+    final clean = name.trim();
+    if (clean.length < 2 || clean.length > 40) {
+      throw ArgumentError('Use a name between 2 and 40 characters.');
+    }
+    _requireConfirmedAccount();
+    final row = await _db
+        .from('profiles')
+        .update({'display_name': clean})
+        .eq('id', _me.id)
+        .select()
+        .single();
+    _me = _profileFromRow(row);
+    _profiles[_me.id] = _me;
+    notifyListeners();
   }
 
   /// Moderators (profiles.role = 'admin', set by the project owner) review
@@ -715,6 +776,7 @@ class Repository extends ChangeNotifier {
       listingId: listingId,
       unread: unread,
       messages: messages,
+      updatedAt: DateTime.tryParse(row['updated_at'] as String? ?? ''),
     );
   }
 
@@ -817,6 +879,7 @@ class Repository extends ChangeNotifier {
     if (current != null && !current.messages.any((m) => m.id == id)) {
       final index = _conversations.indexWhere((c) => c.id == conversationId);
       _conversations[index] = current.copyWith(
+        updatedAt: DateTime.now(),
         messages: [
           ...current.messages,
           TextMessage(id, MessageFrom.me, body.trim()),

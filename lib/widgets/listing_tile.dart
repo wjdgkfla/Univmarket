@@ -6,6 +6,7 @@ import '../data/models.dart';
 import '../data/repository.dart';
 import '../theme/tokens.dart';
 import 'listing_image.dart';
+import 'time_ago.dart';
 import 'async_action.dart';
 
 /// Grid card: square photo, bold price, two-line title, pickup spot.
@@ -83,6 +84,13 @@ class _ListingTileState extends State<ListingTile> {
                       style: TextStyle(fontSize: 12.5, color: c.inkSoft),
                     ),
                   ),
+                  // The zone truncates first; the age always stays readable.
+                  if (listing.createdAt != null)
+                    Text(
+                      ' · ${timeAgo(listing.createdAt!)}',
+                      maxLines: 1,
+                      style: TextStyle(fontSize: 12.5, color: c.inkSoft),
+                    ),
                 ],
               ),
             ],

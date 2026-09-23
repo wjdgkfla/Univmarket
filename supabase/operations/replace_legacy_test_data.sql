@@ -1,3 +1,5 @@
+-- RETIRED 2026-09-23: the preview listings this script seeded were removed
+-- for launch by migrations/*_remove_sample_listings.sql. Do not re-run it.
 -- Owner-authorized one-time data cleanup and preview seed, not a migration.
 -- No sample seller has an auth.users row or a login credential.
 begin;

@@ -1,0 +1,54 @@
+:root {
+  --paper: #ffffff;
+  --fill: #f2f3f5;
+  --line: #e6e8eb;
+  --ink: #17191c;
+  --ink-soft: #5b616b;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #111214;
+    --fill: #1b1c1f;
+    --line: #2b2d33;
+    --ink: #f2f1ee;
+    --ink-soft: #b2afa9;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+main { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+header { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+header a { color: inherit; text-decoration: none; font-weight: 800; font-size: 19px; letter-spacing: -0.4px; }
+.tile {
+  /* Same as the app icon in both themes: white bag on an ink tile. */
+  width: 36px; height: 36px; border-radius: 8px; background: #17191c;
+  box-shadow: 0 0 0 1px var(--line);
+  display: grid; place-items: center;
+}
+.tile svg { width: 26px; height: 26px; }
+h1 { font-size: 32px; line-height: 1.2; letter-spacing: -0.6px; margin: 0 0 6px; }
+h2 { font-size: 20px; letter-spacing: -0.3px; margin: 36px 0 8px; }
+p, li { color: var(--ink); }
+.meta { color: var(--ink-soft); font-size: 14px; margin: 0 0 24px; }
+.note {
+  background: var(--fill); border-radius: 10px; padding: 14px 16px;
+  color: var(--ink-soft); font-size: 15px;
+}
+ul { padding-left: 22px; }
+li { margin: 4px 0; }
+a { color: inherit; }
+nav { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+nav a {
+  background: var(--fill); border-radius: 999px; padding: 8px 16px;
+  text-decoration: none; font-weight: 600; font-size: 15px;
+}
+footer {
+  margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--line);
+  color: var(--ink-soft); font-size: 14px;
+}

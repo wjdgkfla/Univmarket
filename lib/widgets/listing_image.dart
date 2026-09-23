@@ -26,17 +26,7 @@ class ListingImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final source =
-        listing.imageSource ??
-        (listing.isSample
-            ? switch (listing.tag) {
-                'Textbooks' => 'assets/images/books.jpg',
-                'Electronics' => 'assets/images/headphones.jpg',
-                'Dorm' => 'assets/images/lamp.jpg',
-                'Bags' => 'assets/images/bag.jpg',
-                _ => null,
-              }
-            : null);
+    final source = listing.imageSource;
     Widget fallback() => ColoredBox(
       color: c.surface2,
       child: Center(
@@ -107,12 +97,6 @@ class ListingImage extends StatelessWidget {
                   ),
                 ),
               ),
-            ),
-          if (listing.isSample)
-            const Positioned(
-              left: 8,
-              top: 8,
-              child: Pill(label: 'Sample', tone: PillTone.overlay),
             ),
           if (showStatus && listing.status == 'reserved')
             const Positioned(

@@ -96,7 +96,7 @@ void main() {
     addTearDown(client.dispose);
     await SupabaseAuthService(
       client,
-    ).signUp('student@gmu.edu', 'a-long-password');
+    ).signUp('student@gmu.edu', 'a-long-password', 'Jordan Lee');
     expect(
       requests.single.url.queryParameters['redirect_to'],
       nativeAuthCallback,

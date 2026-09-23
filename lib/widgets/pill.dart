@@ -4,7 +4,7 @@ import '../theme/tokens.dart';
 
 enum PillTone { good, warn, bad, neutral, accent, overlay }
 
-/// Small status tag (Sample, Reserved, Sold, offer states).
+/// Small status tag (Reserved, Sold, offer states).
 class Pill extends StatelessWidget {
   final String label;
   final PillTone tone;

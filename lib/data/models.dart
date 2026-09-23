@@ -20,9 +20,6 @@ class Listing {
   final String description;
   final String sellerId;
 
-  // Preview profiles have no auth.users row; the database also rejects contact.
-  bool get isSample => sellerId.startsWith('sample-seller-');
-
   factory Listing.fromJson(Map<String, dynamic> v) => Listing(
     id: v['id'],
     icon: v['icon'],
@@ -37,16 +34,21 @@ class Listing {
     universityId: v['universityId'],
     imageSource: v['imageSource'],
     status: v['status'],
+    createdAt: DateTime.tryParse(v['createdAt'] as String? ?? ''),
   );
   final String universityId;
   final String? imageSource;
   final String status;
+
+  /// When it was posted; null for listings saved before this was tracked.
+  final DateTime? createdAt;
 
   const Listing({
     required this.id,
     this.universityId = '',
     this.imageSource,
     this.status = 'available',
+    this.createdAt,
     required this.icon,
     required this.title,
     required this.price,
@@ -96,6 +98,7 @@ extension ListingJson on Listing {
     'universityId': universityId,
     'imageSource': imageSource,
     'status': status,
+    'createdAt': createdAt?.toIso8601String(),
   };
   Listing copyWith({String? status}) =>
       Listing.fromJson({...toJson(), 'status': status ?? this.status});
@@ -208,12 +211,16 @@ class Conversation {
   final bool unread;
   final List<ChatMessage> messages;
 
+  /// Last message or offer; null when unknown.
+  final DateTime? updatedAt;
+
   const Conversation({
     required this.id,
     required this.sellerId,
     required this.listingId,
     required this.unread,
     required this.messages,
+    this.updatedAt,
   });
 
   factory Conversation.fromJson(Map<String, dynamic> v) => Conversation(
@@ -221,6 +228,7 @@ class Conversation {
     sellerId: v['sellerId'],
     listingId: v['listingId'],
     unread: v['unread'],
+    updatedAt: DateTime.tryParse(v['updatedAt'] as String? ?? ''),
     messages: (v['messages'] as List)
         .map(
           (m) => switch (m['type']) {
@@ -246,6 +254,7 @@ class Conversation {
     'sellerId': sellerId,
     'listingId': listingId,
     'unread': unread,
+    'updatedAt': updatedAt?.toIso8601String(),
     'messages': messages
         .map(
           (m) => switch (m) {
@@ -269,11 +278,13 @@ class Conversation {
         .toList(),
   };
 
-  Conversation copyWith({List<ChatMessage>? messages}) => Conversation(
-    id: id,
-    sellerId: sellerId,
-    listingId: listingId,
-    unread: unread,
-    messages: messages ?? this.messages,
-  );
+  Conversation copyWith({List<ChatMessage>? messages, DateTime? updatedAt}) =>
+      Conversation(
+        id: id,
+        sellerId: sellerId,
+        listingId: listingId,
+        unread: unread,
+        messages: messages ?? this.messages,
+        updatedAt: updatedAt ?? this.updatedAt,
+      );
 }

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../theme/tokens.dart';
 import '../widgets/brand_mark.dart';
+import '../widgets/legal_links.dart';
 import '../auth/auth_service.dart';
 import '../auth/recovery_service.dart';
 import 'password_recovery_screen.dart';
@@ -9,6 +10,14 @@ import 'password_recovery_screen.dart';
 /// Launch schools. Mirrors `university_domains` (exact domain match), which
 /// the server enforces; this only gives an early, clear error.
 const launchEmailDomains = {'gmu.edu', 'gwu.edu'};
+
+/// Validator for display names at sign-up and in Profile.
+String? validDisplayName(String? value) {
+  final name = (value ?? '').trim();
+  if (name.length < 2) return 'Enter your name.';
+  if (name.length > 40) return 'Use 40 characters or fewer.';
+  return null;
+}
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({
@@ -26,6 +35,7 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _form = GlobalKey<FormState>();
+  final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _register = false;
@@ -174,7 +184,7 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       final email = _email.text.trim().toLowerCase();
       if (registering) {
-        await widget.auth.signUp(email, _password.text);
+        await widget.auth.signUp(email, _password.text, _name.text.trim());
         if (mounted) {
           setState(() {
             _message =
@@ -201,6 +211,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _name.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -257,6 +268,22 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                           ),
                           const SizedBox(height: 28),
+                          if (_register) ...[
+                            TextFormField(
+                              key: const Key('auth-name'),
+                              controller: _name,
+                              enabled: !_busy,
+                              textCapitalization: TextCapitalization.words,
+                              autofillHints: const [AutofillHints.name],
+                              decoration: const InputDecoration(
+                                labelText: 'Your name',
+                                helperText:
+                                    'Shown to other students on your listings.',
+                              ),
+                              validator: validDisplayName,
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                           TextFormField(
                             key: const Key('auth-email'),
                             controller: _email,
@@ -353,6 +380,33 @@ class _AuthScreenState extends State<AuthScreen> {
                                   : (_register ? 'Create account' : 'Sign in'),
                             ),
                           ),
+                          if (_register)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Wrap(
+                                alignment: WrapAlignment.center,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  Text(
+                                    'By creating an account, you agree to the',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: context.colors.inkSoft,
+                                    ),
+                                  ),
+                                  _InlineLink('Terms of Use', termsUrl),
+                                  Text(
+                                    'and',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: context.colors.inkSoft,
+                                    ),
+                                  ),
+                                  _InlineLink('Privacy Policy', privacyUrl),
+                                ],
+                              ),
+                            ),
                           TextButton(
                             onPressed: _busy
                                 ? null
@@ -375,6 +429,23 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
         );
+}
+
+/// A compact, tappable link inside a sentence.
+class _InlineLink extends StatelessWidget {
+  const _InlineLink(this.label, this.url);
+  final String label;
+  final String url;
+  @override
+  Widget build(BuildContext context) => TextButton(
+    onPressed: () => openLegalLink(context, url),
+    style: TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      minimumSize: const Size(0, 44),
+      textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+    ),
+    child: Text(label),
+  );
 }
 
 /// App icon plus name, used at the top of the signed-out screens.

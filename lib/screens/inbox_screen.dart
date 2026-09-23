@@ -14,6 +14,7 @@ import '../widgets/fade_slide_in.dart';
 import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
 import '../widgets/screen_scaffold.dart';
+import '../widgets/time_ago.dart';
 
 String _lastMessage(Conversation c) {
   if (c.messages.isEmpty) return '';
@@ -164,17 +165,28 @@ class _ConversationRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    seller?.name ?? 'Unknown',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontWeight: conv.unread
-                          ? FontWeight.w700
-                          : FontWeight.w600,
-                      fontSize: 15.5,
-                      color: c.ink,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          seller?.name ?? 'Student',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: conv.unread
+                                ? FontWeight.w700
+                                : FontWeight.w600,
+                            fontSize: 15.5,
+                            color: c.ink,
+                          ),
+                        ),
+                      ),
+                      if (conv.updatedAt != null)
+                        Text(
+                          timeAgo(conv.updatedAt!),
+                          style: TextStyle(fontSize: 12.5, color: c.inkSoft),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 2),
                   Text(
