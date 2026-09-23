@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'data/repository.dart';
+import 'screens/admin_reports_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/inbox_screen.dart';
@@ -98,6 +99,10 @@ GoRouter buildRouter() => GoRouter(
     GoRoute(
       path: '/profile',
       builder: (context, state) => const ProfileScreen(),
+    ),
+    GoRoute(
+      path: '/admin/reports',
+      builder: (context, state) => const AdminReportsScreen(),
     ),
   ],
 );

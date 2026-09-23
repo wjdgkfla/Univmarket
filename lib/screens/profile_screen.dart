@@ -163,6 +163,19 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
           ],
+          if (repo.isAdmin) ...[
+            Container(height: 8, color: c.surface2),
+            ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: gutter),
+              leading: Icon(CupertinoIcons.checkmark_shield, color: c.ink),
+              title: const Text(
+                'Review reports',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              trailing: Icon(CupertinoIcons.chevron_forward, color: c.inkFaint),
+              onTap: () => context.push('/admin/reports'),
+            ),
+          ],
           if (!repo.isDemo) ...[
             Container(height: 8, color: c.surface2),
             ListTile(

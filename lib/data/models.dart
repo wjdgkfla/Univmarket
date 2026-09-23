@@ -101,6 +101,52 @@ extension ListingJson on Listing {
       Listing.fromJson({...toJson(), 'status': status ?? this.status});
 }
 
+/// An open report in the moderator queue (admin_open_reports).
+class AdminReport {
+  final String id;
+  final String reason;
+  final String? notes;
+  final DateTime? createdAt;
+  final String reporterName;
+  final String reportedUserId;
+  final String reportedUserName;
+  final String reportedUserState;
+  final int openReportsOnUser;
+  final String? listingId;
+  final String? listingTitle;
+  final bool listingHidden;
+
+  const AdminReport({
+    required this.id,
+    required this.reason,
+    this.notes,
+    this.createdAt,
+    required this.reporterName,
+    required this.reportedUserId,
+    required this.reportedUserName,
+    required this.reportedUserState,
+    required this.openReportsOnUser,
+    this.listingId,
+    this.listingTitle,
+    this.listingHidden = false,
+  });
+
+  factory AdminReport.fromJson(Map<String, dynamic> v) => AdminReport(
+    id: v['id'] as String,
+    reason: v['reason'] as String,
+    notes: v['notes'] as String?,
+    createdAt: DateTime.tryParse(v['created_at'] as String? ?? ''),
+    reporterName: v['reporter_name'] as String? ?? 'Student',
+    reportedUserId: v['reported_user_id'] as String,
+    reportedUserName: v['reported_user_name'] as String? ?? 'Student',
+    reportedUserState: v['reported_user_state'] as String? ?? 'active',
+    openReportsOnUser: (v['open_reports_on_user'] as num?)?.toInt() ?? 1,
+    listingId: v['listing_id'] as String?,
+    listingTitle: v['listing_title'] as String?,
+    listingHidden: v['listing_hidden'] as bool? ?? false,
+  );
+}
+
 enum OfferStatus { pending, accepted, declined, expired }
 
 enum MessageFrom { me, them }

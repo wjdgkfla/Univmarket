@@ -17,6 +17,8 @@ const _serverMessages = {
   'Report unavailable',
   'Invalid report',
   'Account unavailable',
+  'Admin access required',
+  'Admins cannot be suspended here',
 };
 
 /// User-facing text for a failed action. The repositories throw

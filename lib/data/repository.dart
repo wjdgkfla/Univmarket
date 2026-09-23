@@ -334,6 +334,7 @@ class Repository extends ChangeNotifier {
           .eq('active', true)
           .single();
       _me = _profileFromRow(profileRow);
+      _isAdmin = profileRow['role'] == 'admin';
       _profiles[_me.id] = _me;
       final zoneRows = await _db
           .from('pickup_zones')
@@ -533,6 +534,35 @@ class Repository extends ChangeNotifier {
         'p_reason': reason,
       },
     );
+  }
+
+  /// Moderators (profiles.role = 'admin', set by the project owner) review
+  /// reports at their university. The server re-checks on every call.
+  bool get isAdmin => _isAdmin;
+  bool _isAdmin = false;
+
+  Future<List<AdminReport>> openReports() async {
+    _requireConfirmedAccount();
+    final rows = await _db.rpc('admin_open_reports') as List<dynamic>;
+    return [
+      for (final r in rows) AdminReport.fromJson(r as Map<String, dynamic>),
+    ];
+  }
+
+  /// [action] is 'dismiss', 'hide_listing' or 'suspend_user'.
+  Future<void> resolveReport(String reportId, String action) async {
+    _requireConfirmedAccount();
+    await _db.rpc(
+      'admin_resolve_report',
+      params: {'p_report_id': reportId, 'p_action': action},
+    );
+    // Hidden listings and suspended sellers leave the feed.
+    if (action != 'dismiss') {
+      try {
+        await _refreshListings();
+        notifyListeners();
+      } catch (_) {}
+    }
   }
 
   /// Deletes your account on the server (anonymized profile, listings
