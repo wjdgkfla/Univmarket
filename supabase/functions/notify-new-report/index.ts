@@ -8,9 +8,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import nodemailer from "npm:nodemailer@6";
 
-const gmailUser = Deno.env.get("GMAIL_USER") ?? "univmarket.app@gmail.com";
-const gmailPassword = Deno.env.get("GMAIL_APP_PASSWORD");
-
 const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
 const admin = createClient(
   Deno.env.get("SUPABASE_URL")!,
@@ -50,6 +47,9 @@ Deno.serve(async (req) => {
       ? json({ error: "unauthorized" }, 401)
       : json({ error: "lookup failed" }, 500);
   }
+  // Read per request: a warm worker must pick up a secret set after it started.
+  const gmailUser = Deno.env.get("GMAIL_USER") ?? "univmarket.app@gmail.com";
+  const gmailPassword = Deno.env.get("GMAIL_APP_PASSWORD");
   if (!gmailPassword) return json({ error: "email not configured" }, 503);
 
   const transport = nodemailer.createTransport({
