@@ -2,16 +2,21 @@
 // trigger in supabase/migrations/*_push_notifications.sql with the Vault
 // token that push_notification_details checks; any other caller gets a 401.
 //
-// Delivers through Firebase Cloud Messaging, which routes to both iOS
-// (APNs) and Android from one call. Needs the Edge Function secret
+// Delivers through Firebase Cloud Messaging's HTTP v1 API, which routes to
+// both iOS (APNs) and Android from one call. Needs the Edge Function secret
 // FIREBASE_SERVICE_ACCOUNT: the JSON key for a Firebase service account
 // with the "Firebase Cloud Messaging API" role, from Project Settings >
 // Service Accounts > Generate new private key in the Firebase console.
-// firebase-admin exchanges it for delivery tokens itself; nothing else here
-// talks to Google.
+//
+// Uses google-auth-library only for the OAuth token exchange, not the full
+// firebase-admin SDK: it's a much smaller dependency for what's needed here
+// (one bearer token, then a plain fetch to FCM's REST endpoint), and
+// Supabase's own push-notification example uses the same pair for exactly
+// that reason — firebase-admin is a heavy Node SDK with a history of
+// Deno-compatibility issues in Edge Functions.
+// https://supabase.com/docs/guides/functions/examples/push-notifications
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { cert, getApps, initializeApp } from "npm:firebase-admin@12/app";
-import { getMessaging } from "npm:firebase-admin@12/messaging";
+import { JWT } from "npm:google-auth-library@10";
 
 const secretKeys = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") ?? "{}");
 const admin = createClient(
@@ -46,39 +51,59 @@ Deno.serve(async (req) => {
   if (!details) return json({ sent: false });
 
   // Read per request: a warm worker must pick up a secret set after it started.
-  const serviceAccount = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
-  if (!serviceAccount) return json({ error: "push not configured" }, 503);
+  const raw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
+  if (!raw) return json({ error: "push not configured" }, 503);
+  const { project_id, client_email, private_key } = JSON.parse(raw);
 
-  if (!getApps().length) {
-    initializeApp({ credential: cert(JSON.parse(serviceAccount)) });
-  }
-  const messaging = getMessaging();
+  const jwtClient = new JWT({
+    email: client_email,
+    key: private_key,
+    scopes: ["https://www.googleapis.com/auth/firebase.messaging"],
+  });
+  const { access_token: accessToken } = await jwtClient.authorize();
 
   const tokens = details.tokens as Array<{ platform: string; token: string }>;
   const results = await Promise.allSettled(
-    tokens.map((t) =>
-      messaging.send({
-        token: t.token,
-        notification: { title: details.title, body: details.body },
-        data: { link: details.link },
-        apns: { payload: { aps: { sound: "default" } } },
-      })
-    ),
+    tokens.map(async (t) => {
+      const res = await fetch(
+        `https://fcm.googleapis.com/v1/projects/${project_id}/messages:send`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            message: {
+              token: t.token,
+              notification: { title: details.title, body: details.body },
+              data: { link: details.link },
+              apns: { payload: { aps: { sound: "default" } } },
+            },
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) throw { token: t.token, ...data };
+      return data;
+    }),
   );
 
   // A token that's uninstalled or revoked fails forever otherwise; drop it
   // instead of retrying it on every future message.
   const dead: string[] = [];
-  results.forEach((r, i) => {
+  results.forEach((r) => {
     if (r.status === "rejected") {
-      const code = (r.reason as { code?: string } | undefined)?.code ?? "";
-      if (
-        code === "messaging/registration-token-not-registered" ||
-        code === "messaging/invalid-registration-token"
-      ) {
-        dead.push(tokens[i].token);
+      const reason = r.reason as {
+        token?: string;
+        error?: { status?: string; details?: Array<{ errorCode?: string }> };
+      };
+      const errorCode = reason.error?.details?.find((d) => d.errorCode)
+        ?.errorCode;
+      if (errorCode === "UNREGISTERED" || errorCode === "INVALID_ARGUMENT") {
+        if (reason.token) dead.push(reason.token);
       } else {
-        console.error("Push send failed:", r.reason);
+        console.error("Push send failed:", reason);
       }
     }
   });
