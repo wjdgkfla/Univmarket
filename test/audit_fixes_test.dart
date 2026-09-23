@@ -111,6 +111,63 @@ void main() {
       },
     );
   }
+
+  testWidgets('blocking a seller hides them everywhere until unblocked', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final repo = await DemoRepository.open();
+    await tester.pumpWidget(UnivMarketApp(repository: repo));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calculus textbook, 9th edition'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Block Alex Morgan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Block').last);
+    await tester.pumpAndSettle();
+
+    // Back on Home with the seller's listings and chats gone.
+    expect(find.text('Fresh on campus'), findsOneWidget);
+    expect(find.text('Calculus textbook, 9th edition'), findsNothing);
+    expect(find.text('Alex Morgan is blocked.'), findsOneWidget);
+    expect(repo.listConversations(), isEmpty);
+
+    // Profile lists them; unblocking brings everything back.
+    await tester.tap(find.byTooltip('Your profile'));
+    await tester.pumpAndSettle();
+    expect(find.text('Blocked students'), findsOneWidget);
+    await tester.tap(find.text('Unblock'));
+    await tester.pumpAndSettle();
+    expect(find.text('Blocked students'), findsNothing);
+    expect(repo.listListings(), isNotEmpty);
+    expect(repo.listConversations(), isNotEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('reporting a listing asks for a reason and confirms', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final repo = await DemoRepository.open();
+    await tester.pumpWidget(UnivMarketApp(repository: repo));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Calculus textbook, 9th edition'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('More'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Report listing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Why are you reporting this?'), findsOneWidget);
+    await tester.tap(find.text('Scam or fraud'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('We review every report'), findsOneWidget);
+    // Reporting does not block or navigate away.
+    expect(repo.blocked, isEmpty);
+    expect(find.text('Calculus textbook, 9th edition'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 /// Offline repository holding one reserved listing owned by "me".

@@ -77,6 +77,15 @@ const categories = [
   'Bags',
 ];
 
+/// Report reasons: database key -> label. Keys match the reports table check.
+const reportReasons = {
+  'prohibited': 'Prohibited or unsafe item',
+  'scam': 'Scam or fraud',
+  'harassment': 'Harassment or hate',
+  'spam': 'Spam or misleading',
+  'other': 'Something else',
+};
+
 class Repository extends ChangeNotifier {
   Repository.offline() : client = null {
     initialized = Future.value();
@@ -251,7 +260,12 @@ class Repository extends ChangeNotifier {
   Profile get me => _me;
   Set<String> get favorites => Set.unmodifiable(_favorites);
 
-  List<Listing> listListings() => List.unmodifiable(_listings);
+  /// Students you blocked: their listings and chats are hidden everywhere.
+  Set<String> get blocked => Set.unmodifiable(_blocked);
+  Set<String> _blocked = {};
+
+  List<Listing> listListings() =>
+      List.unmodifiable(_listings.where((l) => !_blocked.contains(l.sellerId)));
 
   Listing? getListing(String id) {
     for (final l in _listings) {
@@ -271,7 +285,9 @@ class Repository extends ChangeNotifier {
     return cached;
   }
 
-  List<Conversation> listConversations() => List.unmodifiable(_conversations);
+  List<Conversation> listConversations() => List.unmodifiable(
+    _conversations.where((c) => !_blocked.contains(c.sellerId)),
+  );
 
   List<Stream<Object?>> conversationChanges(String id) => [
     _db.from('messages').stream(primaryKey: ['id']).eq('conversation_id', id),
@@ -331,7 +347,11 @@ class Repository extends ChangeNotifier {
       };
       // Listings go last: the feed also keeps items from these threads and
       // favorites after they stop being available.
-      await Future.wait([_refreshConversations(), _refreshFavorites()]);
+      await Future.wait([
+        _refreshConversations(),
+        _refreshFavorites(),
+        _refreshBlocked(),
+      ]);
       await _refreshListings();
     } catch (e) {
       bootstrapError = e.toString();
@@ -444,6 +464,65 @@ class Repository extends ChangeNotifier {
         .select('listing_id')
         .eq('user_id', _me.id);
     _favorites = {for (final r in rows) r['listing_id'] as String};
+  }
+
+  Future<void> _refreshBlocked() async {
+    final rows = await _db
+        .from('blocks')
+        .select('blocked_id')
+        .eq('blocker_id', _me.id);
+    _blocked = {for (final r in rows) r['blocked_id'] as String};
+  }
+
+  /// Hides [userId]'s listings and chats; the server also stops all
+  /// messages and offers between you in both directions.
+  Future<void> block(String userId) async {
+    if (userId == _me.id || _blocked.contains(userId)) return;
+    if (!isDemo) {
+      _requireConfirmedAccount();
+      await _db.from('blocks').insert({
+        'blocker_id': _me.id,
+        'blocked_id': userId,
+      });
+    }
+    _blocked.add(userId);
+    notifyListeners();
+  }
+
+  Future<void> unblock(String userId) async {
+    if (!_blocked.contains(userId)) return;
+    if (!isDemo) {
+      _requireConfirmedAccount();
+      await _db
+          .from('blocks')
+          .delete()
+          .eq('blocker_id', _me.id)
+          .eq('blocked_id', userId);
+    }
+    _blocked.remove(userId);
+    notifyListeners();
+  }
+
+  /// Files a moderation report about [userId], optionally for one of their
+  /// listings. [reason] is one of [reportReasons]' keys. Repeats are ignored.
+  Future<void> report({
+    required String userId,
+    String? listingId,
+    required String reason,
+  }) async {
+    if (!reportReasons.containsKey(reason)) {
+      throw ArgumentError('Choose a reason for your report.');
+    }
+    if (isDemo) return;
+    _requireConfirmedAccount();
+    await _db.rpc(
+      'report_user',
+      params: {
+        'p_reported_user_id': userId,
+        'p_listing_id': listingId,
+        'p_reason': reason,
+      },
+    );
   }
 
   final Set<String> _togglingFavorites = {};

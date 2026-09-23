@@ -47,8 +47,11 @@ class DemoRepository extends Repository {
   @override
   Set<String> get favorites => Set.unmodifiable(_saved);
   @override
-  List<Listing> listListings() =>
-      List.unmodifiable(_items.where((l) => l.universityId == _school));
+  List<Listing> listListings() => List.unmodifiable(
+    _items.where(
+      (l) => l.universityId == _school && !blocked.contains(l.sellerId),
+    ),
+  );
   @override
   Listing? getListing(String id) {
     for (final item in listListings()) {

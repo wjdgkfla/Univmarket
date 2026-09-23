@@ -14,6 +14,8 @@ const _serverMessages = {
   'Message must be between 1 and 2000 characters',
   'University access required',
   'University access requires review',
+  'Report unavailable',
+  'Invalid report',
 };
 
 /// User-facing text for a failed action. The repositories throw

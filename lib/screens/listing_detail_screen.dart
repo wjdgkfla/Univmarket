@@ -9,6 +9,7 @@ import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
 import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
+import '../widgets/safety_menu.dart';
 
 /// Listings with a message/offer action in flight.
 final _messaging = <String>{};
@@ -203,6 +204,19 @@ class ListingDetailScreen extends StatelessWidget {
                   context.canPop() ? context.pop() : context.go('/'),
             ),
             actions: [
+              if (!mine && !listing.isSample) ...[
+                _PhotoButton(
+                  tooltip: 'More',
+                  icon: CupertinoIcons.ellipsis,
+                  onPressed: () => showSafetyMenu(
+                    context,
+                    userId: listing.sellerId,
+                    userName: seller?.name ?? 'this seller',
+                    listingId: listing.id,
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
               _PhotoButton(
                 tooltip: saved ? 'Remove from saved' : 'Save listing',
                 icon: saved ? CupertinoIcons.heart_fill : CupertinoIcons.heart,

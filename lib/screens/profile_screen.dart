@@ -108,6 +108,33 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
           ListingRows(listings: mine),
+          if (repo.blocked.isNotEmpty) ...[
+            Container(height: 8, color: c.surface2),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(gutter, 16, gutter, 4),
+              child: Text(
+                'Blocked students',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: c.ink,
+                ),
+              ),
+            ),
+            for (final id in repo.blocked)
+              ListTile(
+                contentPadding: const EdgeInsets.symmetric(horizontal: gutter),
+                leading: Avatar(
+                  initials: repo.getSeller(id)?.initials ?? '?',
+                  size: 40,
+                ),
+                title: Text(repo.getSeller(id)?.name ?? 'Student'),
+                trailing: TextButton(
+                  onPressed: () => runAction(context, () => repo.unblock(id)),
+                  child: const Text('Unblock'),
+                ),
+              ),
+          ],
           if (!repo.isDemo) ...[
             Container(height: 8, color: c.surface2),
             ListTile(

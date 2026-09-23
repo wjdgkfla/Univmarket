@@ -12,6 +12,7 @@ import '../widgets/avatar.dart';
 import '../widgets/fade_slide_in.dart';
 import '../widgets/listing_image.dart';
 import '../widgets/pill.dart';
+import '../widgets/safety_menu.dart';
 import '../widgets/async_action.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -170,6 +171,15 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
                         fontSize: 16,
                         color: c.ink,
                       ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'More',
+                    icon: Icon(CupertinoIcons.ellipsis, color: c.ink),
+                    onPressed: () => showSafetyMenu(
+                      context,
+                      userId: conversation.sellerId,
+                      userName: seller?.name ?? 'this student',
                     ),
                   ),
                 ],
