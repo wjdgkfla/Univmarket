@@ -1,14 +1,25 @@
 -- Multiple ordered photos per listing (was: image_urls forced to exactly
 -- [cover_image_url]), a real "Other" category, and a free-text pickup spot
 -- alongside the fixed campus zones.
+-- A CHECK constraint's expression can't contain a bare subquery, so the
+-- per-element scan lives in a plain function instead (called with only the
+-- row's own columns; no table access, so no re-validation gap).
+create function app_private.listing_images_own_upload(
+  p_image_urls text[], p_university_id uuid, p_seller_id text
+) returns boolean language sql immutable set search_path = '' as $$
+  select not exists (
+    select 1 from unnest(p_image_urls) u(path)
+    where u.path !~ ('^' || p_university_id::text || '/' || p_seller_id || '/[0-9a-f]{32}\.(jpg|png)$')
+  )
+$$;
+revoke all on function app_private.listing_images_own_upload(text[], uuid, text) from public, anon;
+grant execute on function app_private.listing_images_own_upload(text[], uuid, text) to authenticated, service_role;
+
 alter table public.listings
   drop constraint listings_image_urls_match_cover,
   add constraint listings_image_urls_count check (cardinality(image_urls) <= 6),
   add constraint listings_image_urls_own_upload check (
-    not exists (
-      select 1 from unnest(image_urls) u(path)
-      where u.path !~ ('^' || university_id::text || '/' || seller_id || '/[0-9a-f]{32}\.(jpg|png)$')
-    )
+    app_private.listing_images_own_upload(image_urls, university_id, seller_id)
   ),
   add constraint listings_cover_is_first_image check (
     cardinality(image_urls) = 0 or cover_image_url = image_urls[1]
