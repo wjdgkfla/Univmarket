@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
 import 'listing_photo.dart';
-import 'listing_photo_storage.dart';
 import 'supabase_client.dart';
 
 
@@ -482,7 +482,7 @@ class Repository extends ChangeNotifier {
       paths.map((path) async {
         if (path.startsWith('https://')) return path;
         try {
-          return await ListingPhotoStorage(_db).resolve(path);
+          return await _db.storage.from('listing-images').createSignedUrl(path, 3600);
         } catch (_) {
           // A photo outage must not turn a successful listing write into failure.
           return null;
@@ -996,14 +996,27 @@ class Repository extends ChangeNotifier {
     // (data: URIs) actually upload.
     final imagePaths = <String>[];
     for (final source in imageSources) {
-      imagePaths.add(
-        source.startsWith('data:')
-            ? await ListingPhotoStorage(_db).upload(
-                universityId: _universityId!,
-                photo: ListingPhoto.fromDataUri(source),
-              )
-            : source,
-      );
+      if (source.startsWith('data:')) {
+        final user = _db.auth.currentUser;
+        if (user == null || user.isAnonymous || user.emailConfirmedAt == null) {
+          throw StateError('Sign in before uploading photos.');
+        }
+        final photo = ListingPhoto.fromDataUri(source);
+        final random = Random.secure();
+        final name = List.generate(
+          16,
+          (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+        ).join();
+        final path = '$_universityId/${user.id}/$name.${photo.extension}';
+        await _db.storage.from('listing-images').uploadBinary(
+          path,
+          photo.bytes,
+          fileOptions: FileOptions(contentType: photo.mimeType, upsert: false),
+        );
+        imagePaths.add(path);
+      } else {
+        imagePaths.add(source);
+      }
     }
     final fields = <String, dynamic>{
       'cover_image_url': imagePaths.firstOrNull,

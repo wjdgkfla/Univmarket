@@ -28,8 +28,8 @@ class AuthScreen extends StatefulWidget {
     this.recovery,
     this.showWelcome = false,
   });
-  final AuthService auth;
-  final RecoveryService? recovery;
+  final SupabaseAuthService auth;
+  final SupabaseRecoveryService? recovery;
   final bool showWelcome;
   @override
   State<AuthScreen> createState() => _AuthScreenState();
