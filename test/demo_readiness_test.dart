@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:univmarket_app/app.dart';
-import 'package:univmarket_app/data/demo_repository.dart';
+import 'demo_repository.dart';
 import 'package:univmarket_app/data/models.dart';
 import 'package:univmarket_app/screens/home_screen.dart';
 import 'package:univmarket_app/widgets/async_action.dart';

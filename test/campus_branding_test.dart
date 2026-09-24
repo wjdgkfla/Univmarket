@@ -17,10 +17,6 @@ class CampusRepository extends Repository {
     school: school == 'GMU'
         ? 'George Mason University'
         : 'George Washington University',
-    rating: 0,
-    dealsDone: 0,
-    meetupsKeptPct: 0,
-    avgReplyTime: '',
   );
 }
 

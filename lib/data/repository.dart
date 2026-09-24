@@ -1,22 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'models.dart';
 import 'listing_photo.dart';
-import 'listing_photo_storage.dart';
 import 'supabase_client.dart';
 
-const _categoryIcon = {
-  'Textbooks': 'book',
-  'Electronics': 'headphones',
-  'Furniture': 'chair',
-  'Bikes': 'bike',
-  // ponytail: both seeded "Dorm" listings (lamp, whiteboard) share one icon —
-  // split by a real subcategory column if that distinction ever matters.
-  'Dorm': 'lamp',
-  'Apparel': 'shirt',
-  'Bags': 'bag',
-};
-String _iconForCategory(String category) => _categoryIcon[category] ?? 'board';
 
 Condition _conditionFromDb(String v) => switch (v) {
   'like_new' => Condition.likeNew,
@@ -267,10 +255,6 @@ class Repository extends ChangeNotifier {
     name: '',
     initials: '?',
     school: '',
-    rating: 0,
-    dealsDone: 0,
-    meetupsKeptPct: 100,
-    avgReplyTime: '<1h',
   );
   List<Listing> _listings = [];
   final Map<String, Profile> _profiles = {};
@@ -427,11 +411,6 @@ class Repository extends ChangeNotifier {
       name: name,
       initials: _initialsFor(name),
       school: _schoolName,
-      rating: ((row['reputation_score'] as num?) ?? 5).toDouble(),
-      dealsDone: (row['completed_transaction_count'] as int?) ?? 0,
-      // Not tracked by the schema yet.
-      meetupsKeptPct: 100,
-      avgReplyTime: '<1h',
     );
   }
 
@@ -450,10 +429,6 @@ class Repository extends ChangeNotifier {
               name: 'Deleted student',
               initials: '?',
               school: _schoolName,
-              rating: 0,
-              dealsDone: 0,
-              meetupsKeptPct: 0,
-              avgReplyTime: '',
             );
       notifyListeners();
     } catch (_) {
@@ -646,7 +621,7 @@ class Repository extends ChangeNotifier {
       paths.map((path) async {
         if (path.startsWith('https://')) return path;
         try {
-          return await ListingPhotoStorage(_db).resolve(path);
+          return await _db.storage.from('listing-images').createSignedUrl(path, 3600);
         } catch (_) {
           // A photo outage must not turn a successful listing write into failure.
           return null;
@@ -666,21 +641,20 @@ class Repository extends ChangeNotifier {
     }
     return Listing(
       id: r['id'] as String,
-      icon: _iconForCategory(r['category'] as String),
+      icon: categoryIcons[r['category'] as String] ?? 'board',
       title: r['title'] as String,
       price: (r['price'] as num).round(),
       condition: _conditionFromDb(r['condition'] as String),
       zone:
           _zoneNames[r['pickup_zone_id']] ??
           (r['pickup_custom'] as String?) ??
-          '',
+          'Pickup location TBD',
       tag: r['category'] as String,
       trades: r['accepts_trades'] as bool? ?? false,
       description: (r['description'] as String?) ?? '',
       sellerId: r['seller_id'] as String,
       universityId: r['university_id'] as String,
       status: r['status'] as String? ?? 'available',
-      imageSource: images.firstOrNull,
       images: images,
       imagePaths: imagePaths,
       createdAt: DateTime.tryParse(r['created_at'] as String? ?? ''),
@@ -833,6 +807,28 @@ class Repository extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// This device's FCM token, once push is set up; cleared on sign-out.
+  String? pushToken;
+
+  Future<void> registerPushToken(String token) async {
+    if (isDemo) return;
+    _requireConfirmedAccount();
+    await _db.from('profiles').update({'fcm_token': token}).eq('id', _me.id);
+    pushToken = token;
+  }
+
+  /// Stops pushes to this device, then ends the local session.
+  Future<void> signOut() async {
+    if (pushToken != null) {
+      try {
+        await _db.from('profiles').update({'fcm_token': null}).eq('id', _me.id);
+      } catch (_) {
+        // The next sign-in on this device reassigns the token anyway.
+      }
+    }
+    await _db.auth.signOut(scope: SignOutScope.local);
+  }
+
   final Set<String> _togglingFavorites = {};
 
   Future<void> toggleFavorite(String listingId) async {
@@ -928,8 +924,6 @@ class Repository extends ChangeNotifier {
     final listingId = row['listing_id'] as String;
     final buyerId = row['buyer_id'] as String;
     final sellerId = row['seller_id'] as String;
-    // "sellerId" here means "the other party in the thread" — whichever of
-    // buyer/seller isn't me — since I might be either one.
     final otherId = buyerId == _me.id ? sellerId : buyerId;
 
     final messages = [
@@ -942,7 +936,6 @@ class Repository extends ChangeNotifier {
               as String? ??
           '',
     );
-    // Unread = the other party has written since I last opened the thread.
     final unread = msgRows.any(
       (m) =>
           m['from_user_id'] != _me.id &&
@@ -965,7 +958,7 @@ class Repository extends ChangeNotifier {
 
   ChatMessage _messageFromRow(
     Map<String, dynamic> m,
-    Map<String, Map<String, dynamic>> offers,
+    Map<String, Map<String, dynamic>> offerById,
     String fallbackListingId,
   ) {
     final id = m['id'] as String;
@@ -976,14 +969,12 @@ class Repository extends ChangeNotifier {
     if (type == 'system') return SystemMessage(id, m['body'] as String? ?? '');
     if (type == 'offer') {
       final offerId = m['offer_id'] as String;
-      final offer = offers[offerId];
+      final offer = offerById[offerId];
       final amount = ((offer?['cash_amount'] as num?) ?? 0).round();
       final status = _offerStatusFromDb(
         (offer?['status'] as String?) ?? 'pending',
       );
       final listingId = (offer?['listing_id'] as String?) ?? fallbackListingId;
-      // Use the offer id (not the message id) so acceptOffer/declineOffer
-      // can call respond_to_offer directly with what the UI hands back.
       return OfferMessage(
         offerId,
         from,
@@ -1123,17 +1114,7 @@ class Repository extends ChangeNotifier {
     List<String> imageSources = const [],
     String? editingId,
   }) async {
-    final user = _db.auth.currentUser;
-    if (!ready ||
-        bootstrapError != null ||
-        user == null ||
-        user.id != _me.id ||
-        user.isAnonymous ||
-        user.emailConfirmedAt == null) {
-      throw StateError(
-        'Sign in with a confirmed university account before posting.',
-      );
-    }
+    _requireConfirmedAccount();
     final cleanTitle = title.trim();
     final cleanDescription = description.trim();
     if (cleanTitle.length < 3 || cleanTitle.length > 100) {
@@ -1185,14 +1166,37 @@ class Repository extends ChangeNotifier {
     // (data: URIs) actually upload.
     final imagePaths = <String>[];
     for (final source in imageSources) {
-      imagePaths.add(
-        source.startsWith('data:')
-            ? await ListingPhotoStorage(_db).upload(
-                universityId: _universityId!,
-                photo: ListingPhoto.fromDataUri(source),
-              )
-            : source,
-      );
+      if (source.startsWith('data:')) {
+        final user = _db.auth.currentUser;
+        if (user == null || user.isAnonymous || user.emailConfirmedAt == null) {
+          throw StateError('Sign in before uploading photos.');
+        }
+        final photo = ListingPhoto.fromDataUri(source);
+        final random = Random.secure();
+        final name = List.generate(
+          16,
+          (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+        ).join();
+        final path = '$_universityId/${user.id}/$name.${photo.extension}';
+        await _db.storage.from('listing-images').uploadBinary(
+          path,
+          photo.bytes,
+          fileOptions: FileOptions(contentType: photo.mimeType, upsert: false),
+        );
+        imagePaths.add(path);
+      } else {
+        // Kept photos arrive as the signed URLs shown on screen, which
+        // expire in an hour; store the bucket path they were signed from.
+        const marker = '/object/sign/listing-images/';
+        final at = source.indexOf(marker);
+        imagePaths.add(
+          at < 0
+              ? source
+              : Uri.decodeComponent(
+                  Uri.parse(source.substring(at + marker.length)).path,
+                ),
+        );
+      }
     }
     final fields = <String, dynamic>{
       'cover_image_url': imagePaths.firstOrNull,

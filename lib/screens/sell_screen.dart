@@ -86,18 +86,51 @@ class _SellScreenState extends State<SellScreen> {
   Future<void> choosePhoto() async {
     if (photos.length >= _maxPhotos) return;
     try {
-      final file = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 75,
-      );
-      if (file == null) return;
-      final bytes = await file.readAsBytes();
-      final selected = ListingPhoto.fromBytes(bytes);
-      if (mounted) {
-        setState(
-          () => photos.add((display: selected.dataUri, source: selected.dataUri)),
+      final picker = ImagePicker();
+      final slotsLeft = _maxPhotos - photos.length;
+      final files = slotsLeft > 1
+          ? await picker.pickMultiImage(
+              maxWidth: 1200,
+              maxHeight: 1200,
+              imageQuality: 75,
+            )
+          : [
+              await picker.pickImage(
+                source: ImageSource.gallery,
+                maxWidth: 1200,
+                maxHeight: 1200,
+                imageQuality: 75,
+              ),
+            ];
+      if (files.isEmpty || (files.length == 1 && files.first == null)) return;
+      final newPhotos = <({String display, String source})>[];
+      final existingSources = {for (final p in photos) p.source};
+      var duplicates = 0;
+      for (final f in files) {
+        if (f == null) continue;
+        final bytes = await f.readAsBytes();
+        final uri = ListingPhoto.fromBytes(bytes).dataUri;
+        // Each photo keys its reorderable tile, so the same image twice
+        // would break the list.
+        if (existingSources.contains(uri) ||
+            newPhotos.any((p) => p.source == uri)) {
+          duplicates++;
+          continue;
+        }
+        newPhotos.add((display: uri, source: uri));
+        if (photos.length + newPhotos.length >= _maxPhotos) break;
+      }
+      if (!mounted) return;
+      if (newPhotos.isNotEmpty) setState(() => photos.addAll(newPhotos));
+      if (duplicates > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              duplicates == 1
+                  ? 'That photo is already added.'
+                  : 'Skipped $duplicates photos that are already added.',
+            ),
+          ),
         );
       }
     } catch (e) {

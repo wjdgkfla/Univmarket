@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:univmarket_app/app.dart';
-import 'package:univmarket_app/data/demo_repository.dart';
+import 'demo_repository.dart';
 import 'package:univmarket_app/data/models.dart';
 import 'package:univmarket_app/data/repository.dart';
 import 'package:univmarket_app/screens/profile_screen.dart';
@@ -19,10 +19,6 @@ class _NameRepo extends Repository {
     name: 'Student 3f2a1b',
     initials: 'S',
     school: 'George Mason University',
-    rating: 0,
-    dealsDone: 0,
-    meetupsKeptPct: 0,
-    avgReplyTime: '',
   );
   @override
   Future<void> updateDisplayName(String name) async => renamed.add(name);

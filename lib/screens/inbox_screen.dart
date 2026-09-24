@@ -26,7 +26,8 @@ String _lastMessage(Conversation c) {
   };
 }
 
-OfferStatus? _offerStatus(Conversation c) {
+OfferStatus? _offerStatus(Conversation c, Listing? listing) {
+  if (listing?.status != 'available') return null;
   for (final m in c.messages.reversed) {
     if (m is OfferMessage && m.status != OfferStatus.pending) return m.status;
   }
@@ -147,7 +148,7 @@ class _ConversationRow extends StatelessWidget {
     final c = colors;
     final seller = repo.getSeller(conv.sellerId);
     final listing = repo.getListing(conv.listingId);
-    final status = _offerStatus(conv);
+    final status = _offerStatus(conv, listing);
     return InkWell(
       onTap: () => context.push('/chat/${conv.id}'),
       child: Padding(

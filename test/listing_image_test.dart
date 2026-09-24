@@ -18,7 +18,7 @@ void main() {
         trades: false,
         description: 'Book',
         sellerId: 'seller',
-        imageSource: 'https://test.invalid/book.jpg',
+        images: ['https://test.invalid/book.jpg'],
       );
       await tester.pumpWidget(
         const MaterialApp(

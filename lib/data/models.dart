@@ -32,17 +32,14 @@ class Listing {
     description: v['description'],
     sellerId: v['sellerId'],
     universityId: v['universityId'],
-    imageSource: v['imageSource'],
     images: (v['images'] as List?)?.cast<String>() ?? const [],
     imagePaths: (v['imagePaths'] as List?)?.cast<String>() ?? const [],
     status: v['status'],
     createdAt: DateTime.tryParse(v['createdAt'] as String? ?? ''),
   );
   final String universityId;
-  final String? imageSource;
 
-  /// All photos, cover first. `imageSource == images.firstOrNull`; kept
-  /// separate so every existing single-photo display site is untouched.
+  /// All photos, cover first.
   final List<String> images;
 
   /// The storage path behind each of [images], same order. Editing must
@@ -55,10 +52,12 @@ class Listing {
   /// When it was posted; null for listings saved before this was tracked.
   final DateTime? createdAt;
 
+  /// Convenience getter: first photo if any exist, otherwise null.
+  String? get imageSource => images.firstOrNull;
+
   const Listing({
     required this.id,
     this.universityId = '',
-    this.imageSource,
     this.images = const [],
     this.imagePaths = const [],
     this.status = 'available',
@@ -80,20 +79,12 @@ class Profile {
   final String name;
   final String initials;
   final String school;
-  final double rating;
-  final int dealsDone;
-  final int meetupsKeptPct;
-  final String avgReplyTime;
 
   const Profile({
     required this.id,
     required this.name,
     required this.initials,
     required this.school,
-    required this.rating,
-    required this.dealsDone,
-    required this.meetupsKeptPct,
-    required this.avgReplyTime,
   });
 }
 

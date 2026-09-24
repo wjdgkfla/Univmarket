@@ -8,8 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:univmarket_app/data/demo_repository.dart';
 import 'package:univmarket_app/data/repository.dart';
+import 'demo_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<({Repository repo, List<http.Request> requests})> _fixture() async {

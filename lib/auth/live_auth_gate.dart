@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app.dart';
 import '../data/repository.dart';
@@ -9,7 +10,6 @@ import '../screens/auth_screen.dart';
 import '../screens/password_recovery_screen.dart';
 import '../theme/tokens.dart';
 import 'auth_service.dart';
-import 'auth_browser_location.dart';
 import 'recovery_service.dart';
 
 class LiveAuthGate extends StatefulWidget {
@@ -18,12 +18,10 @@ class LiveAuthGate extends StatefulWidget {
     required this.client,
     this.initialLink,
     this.linkStream,
-    this.browserLocation,
   });
   final SupabaseClient client;
   final Future<Uri?> Function()? initialLink;
   final Stream<Uri>? linkStream;
-  final AuthBrowserLocation? browserLocation;
   @override
   State<LiveAuthGate> createState() => _LiveAuthGateState();
 }
@@ -31,8 +29,6 @@ class LiveAuthGate extends StatefulWidget {
 class _LiveAuthGateState extends State<LiveAuthGate> {
   StreamSubscription<AuthState>? _subscription;
   StreamSubscription<Uri>? _links;
-  late final AuthBrowserLocation? _browser =
-      widget.browserLocation ?? (kIsWeb ? AuthBrowserLocation() : null);
   Repository? _repository;
   UnivMarketApp? _app;
   String? _userId;
@@ -85,8 +81,8 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
       );
       final initial =
           await (widget.initialLink?.call() ??
-              (_browser != null
-                  ? Future.value(_browser.read())
+              (kIsWeb
+                  ? Future.value(Uri.base)
                   : AppLinks().getInitialLink()));
       if (!mounted) return;
       if (initial != null) await _enqueueLink(initial);
@@ -136,9 +132,9 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
         uri.host == 'auth-callback' &&
         uri.path == '/';
     final web =
-        _browser != null &&
+        kIsWeb &&
         (uri.scheme == 'https' || uri.scheme == 'http') &&
-        uri.origin == _browser.read().origin &&
+        uri.origin == Uri.base.origin &&
         uri.path == '/';
     if ((!native && !web) ||
         (!uri.hasQuery && !uri.hasFragment) ||
@@ -159,7 +155,16 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
               response.redirectType == 'passwordRecovery')) {
         _recovering = true;
       }
-      if (web) await _browser.finishCallback(recovering: _recovering);
+      if (web) {
+        final uri = Uri(
+          scheme: Uri.base.scheme,
+          host: Uri.base.host,
+          port: Uri.base.hasPort ? Uri.base.port : null,
+          path: '/',
+          queryParameters: _recovering ? {'recover': '1'} : null,
+        );
+        await SystemNavigator.routeInformationUpdated(uri: uri, replace: true);
+      }
     } catch (_) {
       if (mounted) {
         _linkError =
@@ -184,7 +189,8 @@ class _LiveAuthGateState extends State<LiveAuthGate> {
   }
 
   void _syncSession() {
-    if (_browser?.recoveryRequested == true &&
+    if (kIsWeb &&
+        Uri.base.queryParameters['recover'] == '1' &&
         widget.client.auth.currentSession != null) {
       _recovering = true;
     }
