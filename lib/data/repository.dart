@@ -810,10 +810,13 @@ class Repository extends ChangeNotifier {
   /// This device's FCM token, once push is set up; cleared on sign-out.
   String? pushToken;
 
-  Future<void> registerPushToken(String token) async {
+  Future<void> registerPushToken(String token, {required String platform}) async {
     if (isDemo) return;
     _requireConfirmedAccount();
-    await _db.from('profiles').update({'fcm_token': token}).eq('id', _me.id);
+    await _db.rpc(
+      'register_push_token',
+      params: {'p_token': token, 'p_platform': platform},
+    );
     pushToken = token;
   }
 
@@ -821,9 +824,9 @@ class Repository extends ChangeNotifier {
   Future<void> signOut() async {
     if (pushToken != null) {
       try {
-        await _db.from('profiles').update({'fcm_token': null}).eq('id', _me.id);
+        await _db.rpc('unregister_push_token', params: {'p_token': pushToken});
       } catch (_) {
-        // The next sign-in on this device reassigns the token anyway.
+        // The next sign-in on this device re-registers it anyway.
       }
     }
     await _db.auth.signOut(scope: SignOutScope.local);
@@ -1042,6 +1045,7 @@ class Repository extends ChangeNotifier {
   }
 
   Future<void> sendMessage(String conversationId, String body) async {
+    _requireConfirmedAccount();
     final id =
         await _db.rpc(
               'create_message',

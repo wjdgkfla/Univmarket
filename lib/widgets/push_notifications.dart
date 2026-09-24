@@ -73,8 +73,10 @@ class _PushNotificationsState extends State<PushNotifications> {
   }
 
   Future<void> _register(String token) async {
+    final platform = _platform;
+    if (platform == null) return;
     try {
-      await widget.repository.registerPushToken(token);
+      await widget.repository.registerPushToken(token, platform: platform);
     } catch (e) {
       debugPrint('Push token registration failed: $e');
     }
