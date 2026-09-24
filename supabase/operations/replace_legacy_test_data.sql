@@ -35,7 +35,7 @@ begin
   delete from auth.flow_state where user_id::text=any(legacy);
   delete from public.notifications where user_id=any(legacy);
   delete from public.notification_preferences where user_id=any(legacy);
-  delete from public.device_push_tokens where user_id=any(legacy);
+  update public.profiles set fcm_token=null where id=any(legacy);
   delete from public.saved_searches where user_id=any(legacy);
   delete from public.price_watches where user_id=any(legacy) or listing_id=any(old_listings);
   delete from public.favorites where user_id=any(legacy) or listing_id=any(old_listings);

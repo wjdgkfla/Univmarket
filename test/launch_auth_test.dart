@@ -7,7 +7,21 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:univmarket_app/auth/auth_service.dart';
 import 'package:univmarket_app/auth/live_auth_gate.dart';
 import 'package:univmarket_app/auth/recovery_service.dart';
-import 'auth_pkce_test.dart' show MemoryVerifier;
+
+class MemoryVerifier extends GotrueAsyncStorage {
+  final values = <String, String>{};
+  @override
+  Future<String?> getItem({required String key}) async => values[key];
+  @override
+  Future<void> setItem({required String key, required String value}) async {
+    values[key] = value;
+  }
+
+  @override
+  Future<void> removeItem({required String key}) async {
+    values.remove(key);
+  }
+}
 
 void main() {
   testWidgets('cached legacy identity returns to welcome without loading data', (

@@ -19,10 +19,6 @@ class _NameRepo extends Repository {
     name: 'Student 3f2a1b',
     initials: 'S',
     school: 'George Mason University',
-    rating: 0,
-    dealsDone: 0,
-    meetupsKeptPct: 0,
-    avgReplyTime: '',
   );
   @override
   Future<void> updateDisplayName(String name) async => renamed.add(name);

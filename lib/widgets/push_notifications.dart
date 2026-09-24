@@ -60,21 +60,21 @@ class _PushNotificationsState extends State<PushNotifications> {
       );
       if (!mounted) return;
       _subscriptions
-        ..add(messaging.onTokenRefresh.listen((t) => _register(t, platform)))
+        ..add(messaging.onTokenRefresh.listen(_register))
         ..add(FirebaseMessaging.onMessage.listen(_onForeground))
         ..add(FirebaseMessaging.onMessageOpenedApp.listen(_open));
       final initial = await messaging.getInitialMessage();
       if (initial != null) _open(initial);
       final token = await messaging.getToken();
-      if (token != null) await _register(token, platform);
+      if (token != null) await _register(token);
     } catch (e) {
       debugPrint('Push setup failed: $e');
     }
   }
 
-  Future<void> _register(String token, String platform) async {
+  Future<void> _register(String token) async {
     try {
-      await widget.repository.registerPushToken(token, platform);
+      await widget.repository.registerPushToken(token);
     } catch (e) {
       debugPrint('Push token registration failed: $e');
     }

@@ -28,7 +28,7 @@ class AuthScreen extends StatefulWidget {
     this.recovery,
     this.showWelcome = false,
   });
-  final SupabaseAuthService auth;
+  final AuthService auth;
   final SupabaseRecoveryService? recovery;
   final bool showWelcome;
   @override
@@ -43,6 +43,14 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _register = false;
   bool _busy = false;
   String? _message;
+  // Set once sign-up succeeds; switches the screen to code entry. A
+  // clickable confirmation link would let a mail security scanner (e.g.
+  // Microsoft Safe Links, common on campus email) silently burn it before
+  // the student ever sees it, so confirmation is a code they type in.
+  String? _pendingEmail;
+  final _code = TextEditingController();
+  int _resendCooldownSeconds = 0;
+  Timer? _resendCooldownTimer;
   late bool _welcome = widget.showWelcome;
 
   Widget _codePage(BuildContext context) {

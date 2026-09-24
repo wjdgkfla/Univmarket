@@ -84,5 +84,5 @@ verify_jwt = false
 verify_jwt = false
 
 # Called by the notifications insert trigger via pg_net with a Vault token.
-[functions.push]
+[functions.send-push]
 verify_jwt = false

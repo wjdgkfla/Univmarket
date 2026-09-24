@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,31 +20,82 @@ class _SearchScreenState extends State<SearchScreen> {
   bool under50 = false, likeNew = false, free = false;
   final _queryController = TextEditingController();
 
+  // A typed query searches the server (the loaded feed only holds its
+  // newest page, so an older match would otherwise never turn up). Null
+  // means "no server results yet" — falls back to filtering what's already
+  // loaded, which is also the only path demo mode ever takes.
+  List<Listing>? _serverResults;
+  bool _searching = false;
+  bool _searchFailed = false;
+  Timer? _debounce;
+  int _searchGeneration = 0;
+
   @override
   void dispose() {
+    _debounce?.cancel();
     _queryController.dispose();
     super.dispose();
   }
 
   void _resetSearch() {
     _queryController.clear();
+    _debounce?.cancel();
     setState(() {
       query = '';
       under50 = likeNew = free = false;
+      _serverResults = null;
+      _searchFailed = false;
     });
+  }
+
+  void _onQueryChanged(String value) {
+    setState(() => query = value);
+    _debounce?.cancel();
+    if (context.read<Repository>().isDemo || value.trim().isEmpty) {
+      setState(() {
+        _serverResults = null;
+        _searchFailed = false;
+      });
+      return;
+    }
+    final generation = ++_searchGeneration;
+    _debounce = Timer(const Duration(milliseconds: 300), () => _search(generation));
+  }
+
+  Future<void> _search(int generation) async {
+    setState(() {
+      _searching = true;
+      _searchFailed = false;
+    });
+    try {
+      final results = await context.read<Repository>().searchListings(query);
+      // A newer keystroke's search already landed; drop this stale one.
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        _serverResults = results;
+        _searching = false;
+      });
+    } catch (_) {
+      if (!mounted || generation != _searchGeneration) return;
+      setState(() {
+        _searchFailed = true;
+        _searching = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final results = context
-        .watch<Repository>()
-        .listListings()
+    final repo = context.watch<Repository>();
+    final base = _serverResults ?? repo.listListings();
+    final results = base
         .where(
           (l) =>
               l.status == 'available' &&
-              ('${l.title} ${l.description} ${l.tag}').toLowerCase().contains(
-                query.trim().toLowerCase(),
-              ) &&
+              (_serverResults != null ||
+                  ('${l.title} ${l.description} ${l.tag}')
+                      .toLowerCase()
+                      .contains(query.trim().toLowerCase())) &&
               (!under50 || l.price < 50) &&
               (!free || l.price == 0) &&
               (!likeNew || l.condition == Condition.likeNew),
@@ -86,7 +138,7 @@ class _SearchScreenState extends State<SearchScreen> {
                         ),
                         onPressed: () {
                           _queryController.clear();
-                          setState(() => query = '');
+                          _onQueryChanged('');
                         },
                       ),
                 fillColor: c.surface2,
@@ -104,7 +156,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   borderSide: BorderSide(color: c.ink, width: 1.5),
                 ),
               ),
-              onChanged: (v) => setState(() => query = v),
+              onChanged: _onQueryChanged,
             ),
           ),
           const SizedBox(height: 12),
@@ -138,7 +190,7 @@ class _SearchScreenState extends State<SearchScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    '${results.length} results',
+                    _searching ? 'Searching…' : '${results.length} results',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -165,7 +217,25 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
-          if (results.isEmpty)
+          if (_searchFailed)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(gutter, 8, gutter, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Could not reach the server to search everything. Showing what\'s already loaded.',
+                      style: TextStyle(fontSize: 13, color: c.inkSoft),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _search(_searchGeneration),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          if (results.isEmpty && !_searching)
             Padding(
               padding: const EdgeInsets.symmetric(
                 vertical: 48,

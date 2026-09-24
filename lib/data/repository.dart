@@ -312,6 +312,12 @@ class Repository extends ChangeNotifier {
     _db.from('offers').stream(primaryKey: ['id']).eq('conversation_id', id),
   ];
 
+  /// Every message addressed to me, anywhere — not scoped to one
+  /// conversation. Used to keep the tab-bar's unread dot live without
+  /// requiring the Inbox tab to have been opened first.
+  Stream<Object?> incomingMessages() =>
+      _db.from('messages').stream(primaryKey: ['id']).eq('to_user_id', _me.id);
+
   Conversation? getConversation(String id) {
     for (final c in _conversations) {
       if (c.id == id) return c;
@@ -450,25 +456,158 @@ class Repository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Rows per page of the main "available" feed. The rest of the university
+  /// might have more; [hasMoreListings] says so and [loadMoreListings] gets
+  /// the next page.
+  static const _feedPageSize = 300;
+  bool _hasMoreListings = false;
+  bool get hasMoreListings => _hasMoreListings;
+  bool _loadingMoreListings = false;
+  ({String createdAt, String id})? _feedCursor;
+  // How many "available" rows are currently loaded — starts at one page,
+  // grows as loadMoreListings fetches more. A plain refresh (pull-to-
+  // refresh, the periodic timer, reopening the app) re-requests this many,
+  // not just one page's worth, so it doesn't throw away pages a student
+  // already scrolled through.
+  int _loadedAvailableCount = _feedPageSize;
+
   Future<void> _refreshListings() async {
-    // A reserved or sold item must stay visible to the buyer chatting about
-    // it and to students who saved it.
-    final kept = {for (final c in _conversations) c.listingId, ..._favorites};
+    final availableRows = await _db
+        .from('listings')
+        .select()
+        .eq('university_id', _universityId!)
+        .eq('status', 'available')
+        .eq('moderation_state', 'visible')
+        .isFilter('deleted_at', null)
+        .order('created_at', ascending: false)
+        .order('id', ascending: false)
+        .limit(_loadedAvailableCount);
+    // _loadedAvailableCount itself never shrinks (only loadMoreListings
+    // grows it) — a real drop in how many listings exist just means fewer
+    // rows come back than requested, which is exactly what "no more" (a
+    // partial page) already means; there's no need to lower the request
+    // size to detect that correctly, and doing so risked it degrading to 0.
+    _hasMoreListings = availableRows.length == _loadedAvailableCount;
+    _feedCursor = availableRows.isEmpty
+        ? null
+        : (
+            createdAt: availableRows.last['created_at'] as String? ?? '',
+            id: availableRows.last['id'] as String,
+          );
+    // My own listings (any status), plus every listing I've saved or have a
+    // chat about, whatever its current status — a reserved or sold item
+    // must stay visible to the buyer chatting about it and to students who
+    // saved it. Each of these is a plain filter on my own id, not a list of
+    // listing ids, so unlike the paginated feed above, this can't grow this
+    // request's URL no matter how long someone's history gets.
+    final mineRows = await _db
+        .from('listings')
+        .select()
+        .eq('seller_id', _me.id)
+        .eq('moderation_state', 'visible')
+        .isFilter('deleted_at', null);
+    final favoriteRows = await _db
+        .from('favorites')
+        .select('listings(*)')
+        .eq('user_id', _me.id);
+    final conversationRows = await _db
+        .from('conversations')
+        .select('listings(*)')
+        .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}');
+    final byId = <String, Map<String, dynamic>>{};
+    for (final r in [...availableRows, ...mineRows]) {
+      byId[r['id'] as String] = r;
+    }
+    // The embedded listing can be hidden/deleted since the favorite or
+    // conversation row itself doesn't filter on that; check it here instead.
+    for (final r in [...favoriteRows, ...conversationRows]) {
+      final listing = r['listings'] as Map<String, dynamic>?;
+      if (listing != null &&
+          listing['moderation_state'] == 'visible' &&
+          listing['deleted_at'] == null) {
+        byId[listing['id'] as String] = listing;
+      }
+    }
+    final rows = byId.values.toList()
+      ..sort(
+        (a, b) => (b['created_at'] as String? ?? '').compareTo(
+          a['created_at'] as String? ?? '',
+        ),
+      );
+    _listings = await Future.wait([for (final r in rows) _listingFromRow(r)]);
+  }
+
+  /// Fetches the next page of the "available" feed and appends it. A no-op
+  /// while a page is already loading, once there is nothing more, or in the
+  /// demo (its whole catalog is already loaded).
+  Future<void> loadMoreListings() async {
+    if (isDemo || _loadingMoreListings || !_hasMoreListings) return;
+    final cursor = _feedCursor;
+    if (cursor == null) {
+      _hasMoreListings = false;
+      return;
+    }
+    _requireConfirmedAccount();
+    _loadingMoreListings = true;
+    try {
+      // ponytail: cursors only on created_at, so two listings posted in the
+      // same instant could rarely skip or repeat across pages. Add id as a
+      // tiebreaker (an `.or()` of the compound comparison) if that shows up.
+      final rows = await _db
+          .from('listings')
+          .select()
+          .eq('university_id', _universityId!)
+          .eq('status', 'available')
+          .eq('moderation_state', 'visible')
+          .isFilter('deleted_at', null)
+          .lt('created_at', cursor.createdAt)
+          .order('created_at', ascending: false)
+          .order('id', ascending: false)
+          .limit(_feedPageSize);
+      _hasMoreListings = rows.length == _feedPageSize;
+      _loadedAvailableCount += rows.length;
+      if (rows.isNotEmpty) {
+        _feedCursor = (
+          createdAt: rows.last['created_at'] as String? ?? '',
+          id: rows.last['id'] as String,
+        );
+        final existingIds = _listings.map((l) => l.id).toSet();
+        final more = await Future.wait([
+          for (final r in rows) _listingFromRow(r),
+        ]);
+        _listings.addAll(more.where((l) => !existingIds.contains(l.id)));
+        notifyListeners();
+      }
+    } finally {
+      _loadingMoreListings = false;
+    }
+  }
+
+  /// Searches the whole university's available listings server-side, not
+  /// just the pages already loaded into [listListings] — otherwise a term
+  /// that only matches an older listing (past the feed's page cap) would
+  /// come back empty even though the item is really there. Results aren't
+  /// cached into [listListings]; callers hold onto the returned list
+  /// themselves. Demo mode has no server to search, so it always returns
+  /// empty — screens fall back to filtering the loaded catalog client-side.
+  Future<List<Listing>> searchListings(String query) async {
+    final trimmed = query.trim();
+    if (isDemo || trimmed.isEmpty) return const [];
+    // ',' and '(' are structural in PostgREST's `.or()` syntax; blanking
+    // them out means a search containing one can't break the filter itself
+    // — worst case it just matches a little more loosely than typed.
+    final safe = trimmed.replaceAll(RegExp(r'[,()]'), ' ');
     final rows = await _db
         .from('listings')
         .select()
         .eq('university_id', _universityId!)
-        .or(
-          [
-            'status.eq.available',
-            'seller_id.eq.${_me.id}',
-            if (kept.isNotEmpty) 'id.in.(${kept.map((id) => '"$id"').join(',')})',
-          ].join(','),
-        )
+        .eq('status', 'available')
         .eq('moderation_state', 'visible')
         .isFilter('deleted_at', null)
-        .order('created_at', ascending: false);
-    _listings = await Future.wait([for (final r in rows) _listingFromRow(r)]);
+        .or('title.ilike.%$safe%,description.ilike.%$safe%')
+        .order('created_at', ascending: false)
+        .limit(60);
+    return Future.wait([for (final r in rows) _listingFromRow(r)]);
   }
 
   Future<Listing> _listingFromRow(Map<String, dynamic> r) async {
@@ -489,7 +628,17 @@ class Repository extends ChangeNotifier {
         }
       }),
     );
-    final images = resolved.whereType<String>().toList();
+    // A photo may fail to resolve (storage outage); drop it and its raw
+    // path together so the two lists stay in step.
+    final images = <String>[];
+    final imagePaths = <String>[];
+    for (var i = 0; i < paths.length; i++) {
+      final resolvedPath = resolved[i];
+      if (resolvedPath != null) {
+        images.add(resolvedPath);
+        imagePaths.add(paths[i]);
+      }
+    }
     return Listing(
       id: r['id'] as String,
       icon: categoryIcons[r['category'] as String] ?? 'board',
@@ -507,6 +656,7 @@ class Repository extends ChangeNotifier {
       universityId: r['university_id'] as String,
       status: r['status'] as String? ?? 'available',
       images: images,
+      imagePaths: imagePaths,
       createdAt: DateTime.tryParse(r['created_at'] as String? ?? ''),
     );
   }
@@ -660,22 +810,18 @@ class Repository extends ChangeNotifier {
   /// This device's FCM token, once push is set up; cleared on sign-out.
   String? pushToken;
 
-  Future<void> registerPushToken(String token, String platform) async {
+  Future<void> registerPushToken(String token) async {
     if (isDemo) return;
     _requireConfirmedAccount();
-    await _db.rpc(
-      'register_push_token',
-      params: {'p_token': token, 'p_platform': platform},
-    );
+    await _db.from('profiles').update({'fcm_token': token}).eq('id', _me.id);
     pushToken = token;
   }
 
   /// Stops pushes to this device, then ends the local session.
   Future<void> signOut() async {
-    final token = pushToken;
-    if (token != null) {
+    if (pushToken != null) {
       try {
-        await _db.rpc('unregister_push_token', params: {'p_token': token});
+        await _db.from('profiles').update({'fcm_token': null}).eq('id', _me.id);
       } catch (_) {
         // The next sign-in on this device reassigns the token anyway.
       }
@@ -713,51 +859,29 @@ class Repository extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Fetches every conversation with its messages embedded in one request —
+  /// not a per-conversation query, and not a `conversation_id in (...)` list
+  /// either, which would grow this request's URL right along with a
+  /// student's chat history. The Inbox polls this every 15s.
   Future<void> _refreshConversations([int attempt = 0]) async {
     final revision = _conversationRevision;
     final rows = await _db
         .from('conversations')
-        .select()
-        .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}');
-    final convIds = [for (final r in rows) r['id'] as String];
-
-    Map<String, List<Map<String, dynamic>>> msgsByConv = {};
-    Map<String, Map<String, dynamic>> offerById = {};
-
-    if (convIds.isNotEmpty) {
-      // Fetch all messages for all conversations in one query.
-      final msgRows = await _db
-          .from('messages')
-          .select()
-          .inFilter('conversation_id', convIds)
-          .order('created_at');
-      for (final m in msgRows) {
-        final convId = m['conversation_id'] as String;
-        msgsByConv.putIfAbsent(convId, () => []).add(m);
-      }
-
-      // Fetch all offers for all message offer_ids in one query.
-      final offerIds = [
-        for (final msgs in msgsByConv.values)
-          for (final m in msgs)
-            if (m['offer_id'] != null) m['offer_id'] as String,
-      ];
-      if (offerIds.isNotEmpty) {
-        final offerRows = await _db
-            .from('offers')
-            .select()
-            .inFilter('id', offerIds.toSet().toList());
-        for (final o in offerRows) {
-          offerById[o['id'] as String] = o;
-        }
-      }
-    }
-
-    final list = <Conversation>[];
-    for (final r in rows) {
-      list.add(_hydrateConversation(r, msgsByConv, offerById));
-    }
-
+        .select('*, messages(*)')
+        .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}')
+        .order('created_at', referencedTable: 'messages');
+    final allMessages = [
+      for (final r in rows) ...(r['messages'] as List).cast<Map<String, dynamic>>(),
+    ];
+    final offers = await _offersForMessages(allMessages);
+    final list = [
+      for (final r in rows)
+        _conversationFromRow(
+          r,
+          (r['messages'] as List).cast<Map<String, dynamic>>(),
+          offers,
+        ),
+    ];
     // Another refresh or confirmed write won while this snapshot was loading.
     // Preserve the newer cache and fetch again so a realtime event is not lost.
     if (_disposed) return;
@@ -771,10 +895,30 @@ class Repository extends ChangeNotifier {
     _conversationRevision++;
   }
 
-  Conversation _hydrateConversation(
+  /// Offers referenced by [msgRows]' `offer_id`s — bounded by however many
+  /// offer messages are already in hand, never a marketplace-wide list.
+  Future<Map<String, Map<String, dynamic>>> _offersForMessages(
+    List<Map<String, dynamic>> msgRows,
+  ) async {
+    final offerIds = [
+      for (final m in msgRows)
+        if (m['offer_id'] != null) m['offer_id'] as String,
+    ];
+    if (offerIds.isEmpty) return const {};
+    final offerRows = await _db.from('offers').select().inFilter('id', offerIds);
+    return {for (final o in offerRows) o['id'] as String: o};
+  }
+
+  Future<Conversation> _hydrateConversation(Map<String, dynamic> row) async {
+    final msgRows = (row['messages'] as List).cast<Map<String, dynamic>>();
+    final offers = await _offersForMessages(msgRows);
+    return _conversationFromRow(row, msgRows, offers);
+  }
+
+  Conversation _conversationFromRow(
     Map<String, dynamic> row,
-    Map<String, List<Map<String, dynamic>>> msgsByConv,
-    Map<String, Map<String, dynamic>> offerById,
+    List<Map<String, dynamic>> msgRows,
+    Map<String, Map<String, dynamic>> offers,
   ) {
     final id = row['id'] as String;
     final listingId = row['listing_id'] as String;
@@ -782,9 +926,8 @@ class Repository extends ChangeNotifier {
     final sellerId = row['seller_id'] as String;
     final otherId = buyerId == _me.id ? sellerId : buyerId;
 
-    final msgRows = msgsByConv[id] ?? [];
     final messages = [
-      for (final m in msgRows) _messageFromRow(m, offerById, listingId),
+      for (final m in msgRows) _messageFromRow(m, offers, listingId),
     ];
 
     final isBuyer = buyerId == _me.id;
@@ -876,8 +1019,9 @@ class Repository extends ChangeNotifier {
     final revision = _conversationRevision;
     final row = await _db
         .from('conversations')
-        .select()
+        .select('*, messages(*)')
         .eq('id', conversationId)
+        .order('created_at', referencedTable: 'messages')
         .single();
     final conv = await _hydrateConversation(row);
     if (_disposed) return;

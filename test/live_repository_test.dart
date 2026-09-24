@@ -91,9 +91,31 @@ void main() {
               {'id': 'zone-b', 'name': 'Campus B library'},
             ];
           } else if (path.endsWith('/favorites')) {
-            result = [
-              {'listing_id': 'saved-reserved'},
-            ];
+            // Two different queries share this table: _refreshFavorites'
+            // own plain `listing_id` (drives the heart icon) and the feed's
+            // embedded `listings(*)` (a saved item, reserved rather than
+            // 'available', to prove it survives outside the paginated
+            // available feed and without its id ever appearing in a URL).
+            result = request.url.queryParameters['select'] == 'listing_id'
+                ? [
+                    {'listing_id': 'saved-reserved'},
+                  ]
+                : [
+                    {
+                      'listings': {
+                        'id': 'saved-reserved',
+                        'university_id': 'school-b',
+                        'seller_id': 'someone-else',
+                        'title': 'Reserved textbook',
+                        'price': 5,
+                        'category': 'Textbooks',
+                        'condition': 'good',
+                        'status': 'reserved',
+                        'moderation_state': 'visible',
+                        'deleted_at': null,
+                      },
+                    },
+                  ];
           } else if (path.endsWith('/listings')) {
             result = [
               {
@@ -145,18 +167,47 @@ void main() {
         (r) => r.url.path.endsWith('/pickup_zones'),
       );
       expect(zoneRequest.url.queryParameters['campus_id'], 'eq.campus-b');
-      final feedRequest = requests.singleWhere(
-        (r) => r.url.path.endsWith('/listings'),
+      final feedRequests = requests
+          .where((r) => r.url.path.endsWith('/listings'))
+          .toList();
+      // The paginated "available" page and "my own listings" are separate
+      // plain-filter requests — neither embeds a list of ids, so neither's
+      // URL grows with the marketplace or with how much I've saved/chatted
+      // about. See 20260923... bug #5 in the audit.
+      expect(feedRequests, hasLength(2));
+      final availableRequest = feedRequests.singleWhere(
+        (r) => r.url.queryParameters['status'] == 'eq.available',
       );
-      expect(feedRequest.url.queryParameters['university_id'], 'eq.school-b');
-      // Saved (and chatted-about) items stay loaded after they are reserved.
       expect(
-        feedRequest.url.queryParameters['or'],
-        '(status.eq.available,seller_id.eq.student,id.in.(saved-reserved))',
+        availableRequest.url.queryParameters['university_id'],
+        'eq.school-b',
       );
-      expect(repo.listListings().single.universityId, 'school-b');
+      final mineRequest = feedRequests.singleWhere(
+        (r) => r.url.queryParameters['seller_id'] == 'eq.student',
+      );
+      expect(mineRequest.url.queryParameters.containsKey('status'), isFalse);
+      // Two different /favorites reads: _refreshFavorites' own plain read
+      // (drives the heart icon) and the feed's embedded listings(*) join.
+      final favoritesRequests = requests
+          .where((r) => r.url.path.endsWith('/favorites'))
+          .toList();
+      expect(favoritesRequests, hasLength(2));
+      final favoritesJoinRequest = favoritesRequests.singleWhere(
+        (r) => r.url.queryParameters['select'] != 'listing_id',
+      );
       expect(
-        repo.listListings().single.imageSource,
+        favoritesJoinRequest.url.queryParameters['user_id'],
+        'eq.student',
+      );
+      // Saved (and chatted-about) items stay loaded after they are reserved,
+      // pulled in by joining through favorites/conversations, never by
+      // listing an id anywhere in a request.
+      expect(
+        repo.listListings().map((l) => l.id),
+        containsAll(['listing-b', 'saved-reserved']),
+      );
+      expect(
+        repo.listListings().firstWhere((l) => l.id == 'listing-b').imageSource,
         'https://test.invalid/book.jpg',
       );
     },

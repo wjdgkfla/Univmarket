@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../data/models.dart';
 import '../data/repository.dart';
-import '../data/conversation_sync.dart';
 import '../theme/tokens.dart';
 import '../widgets/avatar.dart';
 import '../widgets/empty_state.dart';
@@ -43,48 +42,47 @@ class InboxScreen extends StatefulWidget {
 }
 
 class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
-  ConversationSync? _sync;
-  Timer? _timer;
+  // Ongoing freshness while the app is open (on any tab, not just this one)
+  // comes from InboxLiveSync's app-wide realtime subscription. This screen
+  // only needs to guarantee one refresh on open and one on resume, the same
+  // resume-recovers-a-missed-realtime-event fallback the chat screen uses.
+  bool _failed = false;
+  bool _refreshing = false;
 
-  @override
-  void initState() {
-    super.initState();
-    final repo = context.read<Repository>();
-    if (repo.isDemo) return;
-    _sync = ConversationSync(changes: [], load: repo.refreshInbox)
-      ..addListener(_changed);
-    WidgetsBinding.instance.addObserver(this);
-    _startTimer();
-    unawaited(_sync!.refresh());
-  }
-
-  void _changed() {
-    if (mounted) setState(() {});
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 15), (_) {
-      unawaited(_sync!.refresh());
-    });
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _startTimer();
-      unawaited(_sync!.refresh());
-    } else {
-      _timer?.cancel();
+  Future<void> _refresh() async {
+    if (_refreshing || !mounted) return;
+    _refreshing = true;
+    try {
+      await context.read<Repository>().refreshInbox();
+      if (mounted && _failed) setState(() => _failed = false);
+    } catch (_) {
+      if (mounted) setState(() => _failed = true);
+    } finally {
+      _refreshing = false;
     }
   }
 
   @override
+  void initState() {
+    super.initState();
+    if (context.read<Repository>().isDemo) return;
+    WidgetsBinding.instance.addObserver(this);
+    // A repository whose refreshInbox() happens to complete synchronously
+    // (no real await before its notifyListeners(), as some test doubles do)
+    // would otherwise call notifyListeners() while Flutter is still in the
+    // middle of building this very widget. Deferring to a microtask is what
+    // the old per-screen ConversationSync used to do for the same reason.
+    unawaited(Future.microtask(_refresh));
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_refresh());
+  }
+
+  @override
   void dispose() {
-    _timer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    _sync?.removeListener(_changed);
-    _sync?.dispose();
     super.dispose();
   }
 
@@ -99,16 +97,13 @@ class _InboxScreenState extends State<InboxScreen> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (_sync?.failed == true)
+          if (_failed)
             MaterialBanner(
               content: const Text(
                 'Could not refresh messages. Check your connection and retry.',
               ),
               actions: [
-                TextButton(
-                  onPressed: () => _sync?.refresh(),
-                  child: const Text('Retry'),
-                ),
+                TextButton(onPressed: _refresh, child: const Text('Retry')),
               ],
             ),
           if (conversations.isEmpty)

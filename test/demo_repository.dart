@@ -265,7 +265,7 @@ class DemoRepository extends Repository {
   Future<String> conversationForListing(String listingId) async {
     final listing = getListing(listingId);
     if (listing == null || listing.sellerId == me.id) {
-      throw StateError('Choose another seller's listing');
+      throw StateError("Choose another seller's listing");
     }
     for (final t in listConversations()) {
       if (t.listingId == listingId) return t.id;

@@ -14,6 +14,7 @@ import 'screens/sell_screen.dart';
 import 'theme/tokens.dart';
 
 import 'widgets/tab_bar.dart';
+import 'widgets/inbox_live_sync.dart';
 import 'widgets/marketplace_refresh.dart';
 import 'widgets/push_notifications.dart';
 import 'widgets/report_alerts.dart';
@@ -210,13 +211,16 @@ class UnivMarketApp extends StatelessWidget {
                       color: bg,
                       child: MarketplaceRefresh(
                         repository: repository,
-                        child: ReportAlerts(
+                        child: InboxLiveSync(
                           repository: repository,
-                          onReview: () => _router.push('/admin/reports'),
-                          child: PushNotifications(
+                          child: ReportAlerts(
                             repository: repository,
-                            router: _router,
-                            child: child ?? const SizedBox(),
+                            onReview: () => _router.push('/admin/reports'),
+                            child: PushNotifications(
+                              repository: repository,
+                              router: _router,
+                              child: child ?? const SizedBox(),
+                            ),
                           ),
                         ),
                       ),

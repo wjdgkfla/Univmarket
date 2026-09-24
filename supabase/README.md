@@ -74,3 +74,10 @@ Before live rollout:
   leaked-password protection and outstanding advisor findings separately.
 - Take a recoverable backup and apply only reviewed pending migrations in order.
   Never replay historical migrations or run a reset against the hosted project.
+- Deploy the `send-push` Edge Function *before* applying
+  `..._push_notifications.sql`. That migration adds a trigger that calls
+  `send-push` on every new message; if the function isn't live yet, every
+  message send queues a call that just fails (harmless — messaging itself
+  still works — but noisy in the function logs until it's deployed).
+  `send-push` also needs the `FIREBASE_SERVICE_ACCOUNT` Edge Function secret
+  set before it can actually deliver anything.
