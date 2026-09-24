@@ -21,9 +21,27 @@
 --     example's single profiles.fcm_token column, as asked for. A user
 --     signed in on two devices only gets push on whichever signed in
 --     last — a real trade-off of this schema, not a bug.
+-- Retire the device_push_tokens-based push path (notify_on_message /
+-- queue_push / push_details / register_push_token / unregister_push_token)
+-- so it doesn't keep running alongside the trigger below and double-insert
+-- a notification per message. conversations_read_notifications /
+-- read_chat_notifications stays: it only marks notifications read and is
+-- unrelated to how a device is registered.
+drop trigger if exists messages_notify_recipient on public.messages;
+drop trigger if exists notifications_queue_push on public.notifications;
+drop function if exists app_private.notify_on_message();
+drop function if exists app_private.queue_push();
+drop function if exists public.push_details(text, text);
+drop function if exists app_private.push_details(text, text);
+drop function if exists public.register_push_token(text, text);
+drop function if exists app_private.register_push_token(text, text);
+drop function if exists public.unregister_push_token(text);
+drop function if exists app_private.unregister_push_token(text);
+
 alter table public.profiles add column fcm_token text;
 grant update (fcm_token) on public.profiles to authenticated;
-drop table public.device_push_tokens;
+drop table if exists public.device_push_tokens;
+delete from vault.secrets where name = 'push_token';
 
 -- Every notify-worthy event (a text message, a sent offer, an
 -- accept/decline/withdraw, a reservation finished, an offer auto-declined
