@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
-import 'package:univmarket_app/data/demo_repository.dart';
+import 'demo_repository.dart';
 import 'package:univmarket_app/data/models.dart';
 
 class FailingStorage extends InMemorySharedPreferencesStore {

@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/tokens.dart';
 import '../widgets/brand_mark.dart';
 import '../widgets/legal_links.dart';
@@ -136,8 +138,10 @@ class _AuthScreenState extends State<AuthScreen> {
                     child: Text(_busy ? 'Please wait…' : 'Confirm'),
                   ),
                   TextButton(
-                    onPressed: _busy ? null : _resendCode,
-                    child: const Text('Resend code'),
+                    onPressed: _busy || _resendCooldownSeconds > 0 ? null : _resendCode,
+                    child: Text(_resendCooldownSeconds > 0
+                        ? 'Resend code in ${_resendCooldownSeconds}s'
+                        : 'Resend code'),
                   ),
                 ],
               ),
@@ -299,6 +303,21 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         await widget.auth.signIn(email, _password.text);
       }
+    } on AuthException catch (e) {
+      if (mounted) {
+        if (e.message.contains('Email not confirmed')) {
+          setState(() {
+            _pendingEmail = _email.text.trim().toLowerCase();
+            _password.clear();
+          });
+        } else {
+          setState(
+            () => _message = registering
+                ? 'Unable to create an account. Check your connection and try again.'
+                : 'Unable to sign in. Check your credentials, email confirmation, and connection.',
+          );
+        }
+      }
     } catch (_) {
       if (mounted) {
         setState(
@@ -312,12 +331,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  /// Set once sign-up succeeds; switches the screen to code entry. A
-  /// clickable confirmation link would let a mail security scanner (e.g.
-  /// Microsoft Safe Links, common on campus email) silently burn it before
-  /// the student ever sees it, so confirmation is a code they type in.
-  String? _pendingEmail;
-  final _code = TextEditingController();
 
   Future<void> _confirmCode() async {
     final code = _code.text.trim();
@@ -343,14 +356,17 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _resendCode() async {
-    if (_busy) return;
+    if (_busy || _resendCooldownSeconds > 0) return;
     setState(() {
       _busy = true;
       _message = null;
     });
     try {
       await widget.auth.resendSignUpCode(_pendingEmail!);
-      if (mounted) setState(() => _message = 'Sent a new code.');
+      if (mounted) {
+        setState(() => _message = 'Sent a new code.');
+        _startResendCooldown();
+      }
     } catch (_) {
       if (mounted) {
         setState(
@@ -364,8 +380,24 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  void _startResendCooldown() {
+    _resendCooldownTimer?.cancel();
+    _resendCooldownSeconds = 60;
+    _resendCooldownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {
+          _resendCooldownSeconds--;
+          if (_resendCooldownSeconds <= 0) {
+            _resendCooldownTimer?.cancel();
+          }
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _resendCooldownTimer?.cancel();
     _name.dispose();
     _email.dispose();
     _password.dispose();

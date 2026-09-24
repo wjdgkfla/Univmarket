@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:univmarket_app/app.dart';
-import 'package:univmarket_app/data/demo_repository.dart';
+import 'demo_repository.dart';
 import 'package:univmarket_app/theme/tokens.dart';
 
 void main() {

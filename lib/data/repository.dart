@@ -5,18 +5,6 @@ import 'listing_photo.dart';
 import 'listing_photo_storage.dart';
 import 'supabase_client.dart';
 
-const _categoryIcon = {
-  'Textbooks': 'book',
-  'Electronics': 'headphones',
-  'Furniture': 'chair',
-  'Bikes': 'bike',
-  // ponytail: both seeded "Dorm" listings (lamp, whiteboard) share one icon —
-  // split by a real subcategory column if that distinction ever matters.
-  'Dorm': 'lamp',
-  'Apparel': 'shirt',
-  'Bags': 'bag',
-};
-String _iconForCategory(String category) => _categoryIcon[category] ?? 'board';
 
 Condition _conditionFromDb(String v) => switch (v) {
   'like_new' => Condition.likeNew,
@@ -267,10 +255,6 @@ class Repository extends ChangeNotifier {
     name: '',
     initials: '?',
     school: '',
-    rating: 0,
-    dealsDone: 0,
-    meetupsKeptPct: 100,
-    avgReplyTime: '<1h',
   );
   List<Listing> _listings = [];
   final Map<String, Profile> _profiles = {};
@@ -421,11 +405,6 @@ class Repository extends ChangeNotifier {
       name: name,
       initials: _initialsFor(name),
       school: _schoolName,
-      rating: ((row['reputation_score'] as num?) ?? 5).toDouble(),
-      dealsDone: (row['completed_transaction_count'] as int?) ?? 0,
-      // Not tracked by the schema yet.
-      meetupsKeptPct: 100,
-      avgReplyTime: '<1h',
     );
   }
 
@@ -444,10 +423,6 @@ class Repository extends ChangeNotifier {
               name: 'Deleted student',
               initials: '?',
               school: _schoolName,
-              rating: 0,
-              dealsDone: 0,
-              meetupsKeptPct: 0,
-              avgReplyTime: '',
             );
       notifyListeners();
     } catch (_) {
@@ -517,21 +492,20 @@ class Repository extends ChangeNotifier {
     final images = resolved.whereType<String>().toList();
     return Listing(
       id: r['id'] as String,
-      icon: _iconForCategory(r['category'] as String),
+      icon: categoryIcons[r['category'] as String] ?? 'board',
       title: r['title'] as String,
       price: (r['price'] as num).round(),
       condition: _conditionFromDb(r['condition'] as String),
       zone:
           _zoneNames[r['pickup_zone_id']] ??
           (r['pickup_custom'] as String?) ??
-          '',
+          'Pickup location TBD',
       tag: r['category'] as String,
       trades: r['accepts_trades'] as bool? ?? false,
       description: (r['description'] as String?) ?? '',
       sellerId: r['seller_id'] as String,
       universityId: r['university_id'] as String,
       status: r['status'] as String? ?? 'available',
-      imageSource: images.firstOrNull,
       images: images,
       createdAt: DateTime.tryParse(r['created_at'] as String? ?? ''),
     );
@@ -719,10 +693,45 @@ class Repository extends ChangeNotifier {
         .from('conversations')
         .select()
         .or('buyer_id.eq.${_me.id},seller_id.eq.${_me.id}');
+    final convIds = [for (final r in rows) r['id'] as String];
+
+    Map<String, List<Map<String, dynamic>>> msgsByConv = {};
+    Map<String, Map<String, dynamic>> offerById = {};
+
+    if (convIds.isNotEmpty) {
+      // Fetch all messages for all conversations in one query.
+      final msgRows = await _db
+          .from('messages')
+          .select()
+          .inFilter('conversation_id', convIds)
+          .order('created_at');
+      for (final m in msgRows) {
+        final convId = m['conversation_id'] as String;
+        msgsByConv.putIfAbsent(convId, () => []).add(m);
+      }
+
+      // Fetch all offers for all message offer_ids in one query.
+      final offerIds = [
+        for (final msgs in msgsByConv.values)
+          for (final m in msgs)
+            if (m['offer_id'] != null) m['offer_id'] as String,
+      ];
+      if (offerIds.isNotEmpty) {
+        final offerRows = await _db
+            .from('offers')
+            .select()
+            .inFilter('id', offerIds.toSet().toList());
+        for (final o in offerRows) {
+          offerById[o['id'] as String] = o;
+        }
+      }
+    }
+
     final list = <Conversation>[];
     for (final r in rows) {
-      list.add(await _hydrateConversation(r));
+      list.add(_hydrateConversation(r, msgsByConv, offerById));
     }
+
     // Another refresh or confirmed write won while this snapshot was loading.
     // Preserve the newer cache and fetch again so a realtime event is not lost.
     if (_disposed) return;
@@ -736,36 +745,20 @@ class Repository extends ChangeNotifier {
     _conversationRevision++;
   }
 
-  Future<Conversation> _hydrateConversation(Map<String, dynamic> row) async {
+  Conversation _hydrateConversation(
+    Map<String, dynamic> row,
+    Map<String, List<Map<String, dynamic>>> msgsByConv,
+    Map<String, Map<String, dynamic>> offerById,
+  ) {
     final id = row['id'] as String;
     final listingId = row['listing_id'] as String;
     final buyerId = row['buyer_id'] as String;
     final sellerId = row['seller_id'] as String;
-    // "sellerId" here means "the other party in the thread" — whichever of
-    // buyer/seller isn't me — since I might be either one.
     final otherId = buyerId == _me.id ? sellerId : buyerId;
 
-    final msgRows = await _db
-        .from('messages')
-        .select()
-        .eq('conversation_id', id)
-        .order('created_at');
-
-    final offerIds = [
-      for (final m in msgRows)
-        if (m['offer_id'] != null) m['offer_id'] as String,
-    ];
-    var offers = <String, Map<String, dynamic>>{};
-    if (offerIds.isNotEmpty) {
-      final offerRows = await _db
-          .from('offers')
-          .select()
-          .inFilter('id', offerIds);
-      offers = {for (final o in offerRows) o['id'] as String: o};
-    }
-
+    final msgRows = msgsByConv[id] ?? [];
     final messages = [
-      for (final m in msgRows) _messageFromRow(m, offers, listingId),
+      for (final m in msgRows) _messageFromRow(m, offerById, listingId),
     ];
 
     final isBuyer = buyerId == _me.id;
@@ -774,7 +767,6 @@ class Repository extends ChangeNotifier {
               as String? ??
           '',
     );
-    // Unread = the other party has written since I last opened the thread.
     final unread = msgRows.any(
       (m) =>
           m['from_user_id'] != _me.id &&
@@ -797,7 +789,7 @@ class Repository extends ChangeNotifier {
 
   ChatMessage _messageFromRow(
     Map<String, dynamic> m,
-    Map<String, Map<String, dynamic>> offers,
+    Map<String, Map<String, dynamic>> offerById,
     String fallbackListingId,
   ) {
     final id = m['id'] as String;
@@ -808,14 +800,12 @@ class Repository extends ChangeNotifier {
     if (type == 'system') return SystemMessage(id, m['body'] as String? ?? '');
     if (type == 'offer') {
       final offerId = m['offer_id'] as String;
-      final offer = offers[offerId];
+      final offer = offerById[offerId];
       final amount = ((offer?['cash_amount'] as num?) ?? 0).round();
       final status = _offerStatusFromDb(
         (offer?['status'] as String?) ?? 'pending',
       );
       final listingId = (offer?['listing_id'] as String?) ?? fallbackListingId;
-      // Use the offer id (not the message id) so acceptOffer/declineOffer
-      // can call respond_to_offer directly with what the UI hands back.
       return OfferMessage(
         offerId,
         from,
@@ -954,17 +944,7 @@ class Repository extends ChangeNotifier {
     List<String> imageSources = const [],
     String? editingId,
   }) async {
-    final user = _db.auth.currentUser;
-    if (!ready ||
-        bootstrapError != null ||
-        user == null ||
-        user.id != _me.id ||
-        user.isAnonymous ||
-        user.emailConfirmedAt == null) {
-      throw StateError(
-        'Sign in with a confirmed university account before posting.',
-      );
-    }
+    _requireConfirmedAccount();
     final cleanTitle = title.trim();
     final cleanDescription = description.trim();
     if (cleanTitle.length < 3 || cleanTitle.length > 100) {

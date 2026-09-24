@@ -54,9 +54,7 @@ class _SellScreenState extends State<SellScreen> {
         zone = _customPickupOption;
         customPickup.text = listing.zone;
       }
-      photos.addAll(
-        listing.images.isNotEmpty ? listing.images : [?listing.imageSource],
-      );
+      photos.addAll(listing.images);
     }
   }
 
@@ -76,16 +74,34 @@ class _SellScreenState extends State<SellScreen> {
   Future<void> choosePhoto() async {
     if (photos.length >= _maxPhotos) return;
     try {
-      final file = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 75,
-      );
-      if (file == null) return;
-      final bytes = await file.readAsBytes();
-      final selected = ListingPhoto.fromBytes(bytes);
-      if (mounted) setState(() => photos.add(selected.dataUri));
+      final picker = ImagePicker();
+      final slotsLeft = _maxPhotos - photos.length;
+      final files = slotsLeft > 1
+          ? await picker.pickMultiImage(
+              maxWidth: 1200,
+              maxHeight: 1200,
+              imageQuality: 75,
+            )
+          : [
+              await picker.pickImage(
+                source: ImageSource.gallery,
+                maxWidth: 1200,
+                maxHeight: 1200,
+                imageQuality: 75,
+              ),
+            ];
+      if (files.isEmpty || (files.length == 1 && files.first == null)) return;
+      final newPhotos = <String>[];
+      for (final f in files) {
+        if (f == null) continue;
+        final bytes = await f.readAsBytes();
+        final selected = ListingPhoto.fromBytes(bytes);
+        newPhotos.add(selected.dataUri);
+        if (photos.length + newPhotos.length >= _maxPhotos) break;
+      }
+      if (newPhotos.isNotEmpty && mounted) {
+        setState(() => photos.addAll(newPhotos));
+      }
     } catch (e) {
       error(e);
     }

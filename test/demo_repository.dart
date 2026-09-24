@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'models.dart';
-import 'repository.dart';
+import 'package:univmarket_app/data/models.dart';
+import 'package:univmarket_app/data/repository.dart';
 
 /// Offline test double. The app itself always runs against Supabase; this
 /// adapter never authenticates or contacts it.
@@ -39,10 +39,6 @@ class DemoRepository extends Repository {
     name: 'Your demo profile',
     initials: 'Y',
     school: schools[_school]!,
-    rating: 0,
-    dealsDone: 0,
-    meetupsKeptPct: 0,
-    avgReplyTime: '—',
   );
   @override
   Set<String> get favorites => Set.unmodifiable(_saved);
@@ -68,10 +64,6 @@ class DemoRepository extends Repository {
           name: id.endsWith('alex') ? 'Alex Morgan' : 'Sam Rivera',
           initials: id.endsWith('alex') ? 'AM' : 'SR',
           school: schools[_school]!,
-          rating: 0,
-          dealsDone: 0,
-          meetupsKeptPct: 0,
-          avgReplyTime: 'Demo seller',
         );
   @override
   List<Conversation> listConversations() =>
@@ -176,7 +168,7 @@ class DemoRepository extends Repository {
             description: description,
             sellerId: '$school-alex',
             universityId: school,
-            imageSource: 'assets/images/$photo',
+            images: const ['assets/images/books.jpg'],
           ),
         );
       }
@@ -273,7 +265,7 @@ class DemoRepository extends Repository {
   Future<String> conversationForListing(String listingId) async {
     final listing = getListing(listingId);
     if (listing == null || listing.sellerId == me.id) {
-      throw StateError('Choose another seller’s listing');
+      throw StateError('Choose another seller's listing');
     }
     for (final t in listConversations()) {
       if (t.listingId == listingId) return t.id;
@@ -479,7 +471,6 @@ class DemoRepository extends Repository {
       description: description.trim(),
       sellerId: me.id,
       universityId: _school,
-      imageSource: imageSources.firstOrNull,
       images: imageSources,
       status: existing?.status ?? 'available',
       createdAt: existing?.createdAt ?? DateTime.now(),
