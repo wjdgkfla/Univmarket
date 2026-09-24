@@ -462,7 +462,7 @@ class Repository extends ChangeNotifier {
           [
             'status.eq.available',
             'seller_id.eq.${_me.id}',
-            if (kept.isNotEmpty) 'id.in.(${kept.join(',')})',
+            if (kept.isNotEmpty) 'id.in.(${kept.map((id) => '"$id"').join(',')})',
           ].join(','),
         )
         .eq('moderation_state', 'visible')
@@ -655,6 +655,32 @@ class Repository extends ChangeNotifier {
     try {
       await _db.auth.signOut(scope: SignOutScope.local);
     } catch (_) {}
+  }
+
+  /// This device's FCM token, once push is set up; cleared on sign-out.
+  String? pushToken;
+
+  Future<void> registerPushToken(String token, String platform) async {
+    if (isDemo) return;
+    _requireConfirmedAccount();
+    await _db.rpc(
+      'register_push_token',
+      params: {'p_token': token, 'p_platform': platform},
+    );
+    pushToken = token;
+  }
+
+  /// Stops pushes to this device, then ends the local session.
+  Future<void> signOut() async {
+    final token = pushToken;
+    if (token != null) {
+      try {
+        await _db.rpc('unregister_push_token', params: {'p_token': token});
+      } catch (_) {
+        // The next sign-in on this device reassigns the token anyway.
+      }
+    }
+    await _db.auth.signOut(scope: SignOutScope.local);
   }
 
   final Set<String> _togglingFavorites = {};
@@ -1015,7 +1041,17 @@ class Repository extends ChangeNotifier {
         );
         imagePaths.add(path);
       } else {
-        imagePaths.add(source);
+        // Kept photos arrive as the signed URLs shown on screen, which
+        // expire in an hour; store the bucket path they were signed from.
+        const marker = '/object/sign/listing-images/';
+        final at = source.indexOf(marker);
+        imagePaths.add(
+          at < 0
+              ? source
+              : Uri.decodeComponent(
+                  Uri.parse(source.substring(at + marker.length)).path,
+                ),
+        );
       }
     }
     final fields = <String, dynamic>{

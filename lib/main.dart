@@ -39,7 +39,8 @@ class _StartupState extends State<Startup> {
           .then((info) => int.tryParse(info.buildNumber))
           .catchError((Object _) => null);
       if (mounted) setState(() => _initialized = true);
-    } catch (_) {
+    } catch (e, stack) {
+      debugPrint('Startup failed: $e\n$stack');
       if (mounted) {
         setState(
           () => _error =

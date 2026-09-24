@@ -92,15 +92,32 @@ class _SellScreenState extends State<SellScreen> {
             ];
       if (files.isEmpty || (files.length == 1 && files.first == null)) return;
       final newPhotos = <String>[];
+      var duplicates = 0;
       for (final f in files) {
         if (f == null) continue;
         final bytes = await f.readAsBytes();
-        final selected = ListingPhoto.fromBytes(bytes);
-        newPhotos.add(selected.dataUri);
+        final uri = ListingPhoto.fromBytes(bytes).dataUri;
+        // Each photo keys its reorderable tile, so the same image twice
+        // would break the list.
+        if (photos.contains(uri) || newPhotos.contains(uri)) {
+          duplicates++;
+          continue;
+        }
+        newPhotos.add(uri);
         if (photos.length + newPhotos.length >= _maxPhotos) break;
       }
-      if (newPhotos.isNotEmpty && mounted) {
-        setState(() => photos.addAll(newPhotos));
+      if (!mounted) return;
+      if (newPhotos.isNotEmpty) setState(() => photos.addAll(newPhotos));
+      if (duplicates > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              duplicates == 1
+                  ? 'That photo is already added.'
+                  : 'Skipped $duplicates photos that are already added.',
+            ),
+          ),
+        );
       }
     } catch (e) {
       error(e);

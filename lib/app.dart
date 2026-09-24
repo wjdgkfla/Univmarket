@@ -15,6 +15,7 @@ import 'theme/tokens.dart';
 
 import 'widgets/tab_bar.dart';
 import 'widgets/marketplace_refresh.dart';
+import 'widgets/push_notifications.dart';
 import 'widgets/report_alerts.dart';
 
 /// Built fresh per [UnivMarketApp] instance rather than as a bare top-level
@@ -212,7 +213,11 @@ class UnivMarketApp extends StatelessWidget {
                         child: ReportAlerts(
                           repository: repository,
                           onReview: () => _router.push('/admin/reports'),
-                          child: child ?? const SizedBox(),
+                          child: PushNotifications(
+                            repository: repository,
+                            router: _router,
+                            child: child ?? const SizedBox(),
+                          ),
                         ),
                       ),
                     ),

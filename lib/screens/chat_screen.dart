@@ -85,8 +85,36 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     ],
   );
 
+  Timer? _expiryTimer;
+  DateTime? _expiryAt;
+
+  /// Rebuilds when the next pending offer's deadline passes, so its
+  /// Accept/Decline buttons turn into "expired" without a new message.
+  void _scheduleExpiry(Conversation conversation) {
+    final now = DateTime.now();
+    DateTime? next;
+    for (final m in conversation.messages) {
+      if (m is OfferMessage &&
+          m.status == OfferStatus.pending &&
+          m.expiresAt != null &&
+          m.expiresAt!.isAfter(now) &&
+          (next == null || m.expiresAt!.isBefore(next))) {
+        next = m.expiresAt;
+      }
+    }
+    if (next == _expiryAt) return;
+    _expiryAt = next;
+    _expiryTimer?.cancel();
+    if (next == null) return;
+    _expiryTimer = Timer(next.difference(now) + const Duration(seconds: 1), () {
+      _expiryAt = null;
+      if (mounted) setState(() {});
+    });
+  }
+
   @override
   void dispose() {
+    _expiryTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     // Messages that arrived while the chat was open count as read too.
     unawaited(_repo.markConversationRead(widget.id));
@@ -130,6 +158,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             : const Center(child: CircularProgressIndicator.adaptive()),
       );
     }
+    _scheduleExpiry(conversation);
     final seller = repo.getSeller(conversation.sellerId);
     final listing = repo.getListing(conversation.listingId);
     // The history on first open is at rest; later messages slide in.

@@ -4,11 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import '../data/repository.dart';
-import '../data/supabase_client.dart';
 import '../theme/tokens.dart';
 import '../widgets/async_action.dart';
 import '../widgets/avatar.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../widgets/legal_links.dart';
 import '../widgets/listing_row.dart';
 import 'auth_screen.dart' show validDisplayName;
@@ -308,10 +306,7 @@ class ProfileScreen extends StatelessWidget {
                 'Sign out',
                 style: TextStyle(color: c.bad, fontWeight: FontWeight.w600),
               ),
-              onTap: () => runAction(
-                context,
-                () => supabase.auth.signOut(scope: SignOutScope.local),
-              ),
+              onTap: () => runAction(context, repo.signOut),
             ),
             ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: gutter),
