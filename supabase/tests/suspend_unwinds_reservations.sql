@@ -30,16 +30,24 @@ insert into profiles(id,university_id,home_campus_id,display_name,role) values
 -- Reserved as seller: the buyer must get their listing back.
 insert into listings(id,seller_id,university_id,campus_id,title,description,status) values
 ('own-item','20000000-0000-0000-0000-000000000002','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Own item','Reserved to a buyer.','reserved');
-insert into transactions(id,listing_id,buyer_id,seller_id,kind,agreed_price,status) values
-('t-own','own-item','20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002','sale',10,'reserved');
+insert into conversations(id,listing_id,buyer_id,seller_id) values
+('conv-own','own-item','20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002');
+insert into offers(id,listing_id,conversation_id,from_user_id,to_user_id,kind,cash_amount,status,expires_at) values
+('offer-own','own-item','conv-own','20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002','cash',10,'accepted',now()+interval '1 day');
+insert into transactions(id,listing_id,offer_id,buyer_id,seller_id,kind,agreed_price,status) values
+('t-own','own-item','offer-own','20000000-0000-0000-0000-000000000003','20000000-0000-0000-0000-000000000002','sale',10,'reserved');
 insert into transaction_listings(transaction_id,listing_id,role,is_active) values
 ('t-own','own-item','target',true);
 
 -- Reserved as buyer: the seller must get their listing back.
 insert into listings(id,seller_id,university_id,campus_id,title,description,status) values
 ('their-item','20000000-0000-0000-0000-000000000004','10000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','Their item','Reserved by the suspended student.','reserved');
-insert into transactions(id,listing_id,buyer_id,seller_id,kind,agreed_price,status) values
-('t-their','their-item','20000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000004','sale',20,'reserved');
+insert into conversations(id,listing_id,buyer_id,seller_id) values
+('conv-their','their-item','20000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000004');
+insert into offers(id,listing_id,conversation_id,from_user_id,to_user_id,kind,cash_amount,status,expires_at) values
+('offer-their','their-item','conv-their','20000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000004','cash',20,'accepted',now()+interval '1 day');
+insert into transactions(id,listing_id,offer_id,buyer_id,seller_id,kind,agreed_price,status) values
+('t-their','their-item','offer-their','20000000-0000-0000-0000-000000000002','20000000-0000-0000-0000-000000000004','sale',20,'reserved');
 insert into transaction_listings(transaction_id,listing_id,role,is_active) values
 ('t-their','their-item','target',true);
 
@@ -75,8 +83,20 @@ select pg_temp.check('their reservation as buyer is also cancelled',
 select pg_temp.check('the other seller gets their listing back on the market',
  (select status from listings where id='their-item')='available');
 
+select pg_temp.check('both unwound reservations tell the other party in their thread',
+ (select count(*) from messages where conversation_id in ('conv-own','conv-their')
+   and type='system' and body='Reservation cancelled')=2);
+select pg_temp.check('both unwound conversations bubble to the top of the inbox',
+ (select count(*) from conversations where id in ('conv-own','conv-their')
+   and last_message='Reservation cancelled')=2);
+
 select pg_temp.check('a pending offer they''re still a party to elsewhere is withdrawn',
  (select status from offers where id='offer-pending')='withdrawn');
+select pg_temp.check('the other side of that offer is told, so Accept/Decline does not just go dead',
+ (select count(*) from messages where conversation_id='conv-offer'
+   and type='system' and body='Offer withdrawn')=1);
+select pg_temp.check('that conversation bubbles to the top of the inbox too',
+ (select last_message from conversations where id='conv-offer')='Offer withdrawn');
 
 select pg_temp.check('their own listing is hidden (declining any pending offers on it, for free, via the trigger)',
  (select moderation_state from listings where id='own-item')='hidden');

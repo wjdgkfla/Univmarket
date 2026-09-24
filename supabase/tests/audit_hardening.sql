@@ -126,6 +126,9 @@ select pg_temp.check('finished transactions are closed',
 select pg_temp.check('buyer is told in the conversation',
  (select count(*) from messages m join flow f on f.conversation_id=m.conversation_id
   where m.type='system' and m.body in ('Marked as sold','Reservation cancelled'))=2);
+select pg_temp.check('the finished conversation bubbles to the top of the inbox',
+ (select count(*) from conversations c join flow f on f.conversation_id=c.id
+  where c.last_message in ('Marked as sold','Reservation cancelled'))=2);
 select pg_temp.probe('a finished reservation cannot be finished twice',
 $q$select finish_reservation('sell','cancelled')$q$,'42501');
 select pg_temp.probe('relisted item is editable again',
